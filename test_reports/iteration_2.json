@@ -1,0 +1,16 @@
+{
+  "summary": "Iteration 2 backend verification of Factor_Investment_Simulator_Rolling_Pro.xlsm with REAL NSE data + charts + Web Refresh. All 16 pytest cases PASSED. Database_Daily has 5266 real daily rows spanning 2005-04-01 -> 2026-06-25 (~21.2y), strictly ascending, no blanks. Full-period CAGR: Momentum=18.85%, Value=16.88%, Benchmark=14.11% - Momentum is top and all within 10-25%. validate_engine.py runs cleanly; default SIP 5Y 60/40 2012-2024 has mom avg=21.14% > val 17.08% > ben 14.87%, and 10Y/2020-2024 prints INSUFFICIENT DATA. Chart wiring verified: xl/charts/chart1.xml + chart2.xml both reference 'Charts_Data'; xl/drawings/drawing1.xml and xl/drawings/vmlDrawing1.vml exist; Dashboard sheet1.xml contains BOTH <drawing> and <legacyDrawing>. vmlDrawing1.vml has all 4 FmlaMacro buttons (RefreshData, RunSimulation, ResetInputs, WebRefresh). workbook.xml defines cfg_WebEnable/Start/End plus cfg_MomFile/ValFile/BenFile and in_* names. Charts_Data sheet is hidden with correct equity headers A1:E1 and distribution headers H1:L1 plus 12 band labels H2:H13 ('< -10%' ... '> 40%'). VBA modules include all 8 expected (ThisWorkbook, modValidation, modBlendEngine, modRollingReturns, modDataImport, modDashboard, modCharts, modWebRefresh) and pyopenvba validate()=[]. Download links: xlsm 200 / 196819B, samples.zip 200 / 102926B. NSE endpoint reachable: GET historical-data 200, POST getTotalReturnIndexString 200 with 'TotalReturnsIndex' in body.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_workbook.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": ["/app/backend/tests/test_workbook.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "n/a"},
+  "test_credentials": "none",
+  "seed_data_creation": "None - workbook already seeded with real NSE TRI CSV (/app/build/nse_tri_real.csv, 5266 rows)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Workbook: /app/Factor_Investment_Simulator_Rolling_Pro.xlsm (196KB). Tests cover: real data integrity + Momentum-top-performer bug fix, engine port validate_engine.py, chart/drawing XML wiring, 4 VBA buttons, defined names, Charts_Data hidden sheet layout, 8 VBA modules, downloads on preview URL, and live NSE TRI endpoint. Charts_Data data cells A2:E and I2:L are intentionally empty (filled only when VBA runs inside Excel).",
+  "rca of the issue": "N/A - no defects found this iteration. Prior Momentum-underperforms bug remains fixed on real data (CAGR mom 18.85% > val 16.88% > ben 14.11%)."
+}

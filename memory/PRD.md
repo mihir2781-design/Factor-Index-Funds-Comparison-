@@ -31,10 +31,16 @@ Quant investors, factor-cycle analysts, SIP-vs-Lumpsum advisors, Excel power use
 - Engine logic verified via faithful Python port on identical seed data: windows generate (96/84/36), metrics sane, XIRR converges, too-short range → INSUFFICIENT DATA.
 - Final macro execution occurs inside Microsoft Excel (cannot run VBA in this Linux container).
 
-## Fixes
-- 2026-06: User reported Momentum data looked wrong (Momentum underperforming Value/Benchmark in the seed). Fixed by re-seeding synthetic generation (seed=2; Mom 21%/17%, Val 16%/20%, Ben 13.5%/15%) so Momentum is the top factor. Verified by testing agent (8/8 backend checks): full-period CAGR Momentum 23.86% > Value 19.79% > Benchmark 19.06%. Clarified to user that Database_Daily is seeded sample data; real source is NSE Indices (niftyindices.com) TRI historical downloads, importable via Config paths + Refresh Data.
-
+## Fixes / Iterations
 ## Backlog / P1-P2
+- 2026-06 (it.1): Fixed Momentum-underperforms bug by re-seeding synthetic data (later superseded by real data).
+- 2026-06 (it.2): REAL NSE DATA + CHARTS + WEB REFRESH.
+  - Discovered the live niftyindices.com TRI endpoint (POST /BackPage/getTotalReturnIndexString, cookie-primed) and index-name mapping. build/fetch_nse.py pulls full real TRI history for all 3 indices (5266 aligned daily rows, 2005-04-01 -> 2026-06-25) into build/nse_tri_real.csv; build_workbook.load_dataset() seeds Database_Daily from it (synthetic is now only a fallback). Real CAGR: Momentum 18.85% > Value 16.88% > Benchmark 14.11%.
+  - Added two Dashboard charts (Equity Curve line rebased to 100; Rolling-Return Distribution column histogram) bound to a hidden Charts_Data sheet; modCharts.BuildChartData fills it on Run Simulation.
+  - Added Web Refresh button + modWebRefresh (MSXML2 direct TRI download fallback, JSON scan parser) + Config web section (cfg_WebEnable/Start/End). File import remains primary.
+  - Verified by testing agent: 16/16 backend checks, incl. live NSE endpoint reachable and chart/button coexistence.
+
+## Legacy Backlog
 - Optional direct web-download refresh from NSE (fragile) as fallback to file import.
 - Rolling-return distribution chart / equity-curve chart on Dashboard.
 - Optional daily (vs monthly) rolling cadence toggle.
