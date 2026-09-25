@@ -49,7 +49,7 @@ def build_vba_project():
         pass
 
     for mod in ("modValidation", "modBlendEngine", "modRollingReturns",
-                "modDataImport", "modDashboard"):
+                "modDataImport", "modDashboard", "modCharts", "modWebRefresh"):
         proj.add_module(mod, read_src(mod + ".bas"), kind=VBAModuleKind.standard)
 
     wb.save()
@@ -97,9 +97,28 @@ def generate_series(dates):
     return vals
 
 
-def build_workbook(vba_bin):
+REAL_CSV = os.path.join(BUILD_DIR, "nse_tri_real.csv")
+
+
+def load_dataset():
+    """Return (dates, series, is_real) using real NSE TRI data if available, else synthetic."""
+    if os.path.exists(REAL_CSV):
+        import csv
+        dates, mom, val, ben = [], [], [], []
+        with open(REAL_CSV, newline="") as f:
+            for row in csv.DictReader(f):
+                dates.append(date.fromisoformat(row["Date"]))
+                mom.append(float(row["Momentum_TRI"]))
+                val.append(float(row["Value_TRI"]))
+                ben.append(float(row["Benchmark_TRI"]))
+        print(f"Using REAL NSE TRI data: {len(dates)} rows {dates[0]} -> {dates[-1]}")
+        return dates, {"mom": mom, "val": val, "ben": ben}, True
     dates = business_days(date(2009, 1, 1), date(2025, 12, 31))
-    series = generate_series(dates)
+    return dates, generate_series(dates), False
+
+
+def build_workbook(vba_bin):
+    dates, series, is_real = load_dataset()
 
     wb = xlsxwriter.Workbook(OUT, {"in_memory": True})
     wb.set_vba_name("ThisWorkbook")
@@ -172,7 +191,9 @@ def build_workbook(vba_bin):
     dash.set_row(1, 20)
 
     dash.merge_range("A1:H1", "FACTOR INVESTMENT SIMULATOR  \u2014  ROLLING PRO", f_title)
-    dash.merge_range("A2:H2", "NSE factor-cycle analysis  \u00b7  Momentum vs Value vs Benchmark vs custom blend  \u00b7  SIP (XIRR) & Lumpsum (CAGR)", f_sub)
+    src_txt = ("Live NSE TRI history (niftyindices.com)" if is_real
+               else "Seeded sample history")
+    dash.merge_range("A2:H2", "Momentum vs Value vs Benchmark vs custom blend  \u00b7  SIP (XIRR) & Lumpsum (CAGR)  \u00b7  " + src_txt, f_sub)
 
     dash.merge_range("B4:D4", "INPUT PARAMETERS", f_section)
 
@@ -245,6 +266,11 @@ def build_workbook(vba_bin):
                               "width": 132, "height": 30})
     dash.insert_button("F9", {"macro": "ResetInputs", "caption": "Reset Inputs",
                               "width": 132, "height": 30})
+    dash.insert_button("F11", {"macro": "WebRefresh", "caption": "Web Refresh (NSE)",
+                               "width": 132, "height": 30})
+
+    # Charts section
+    dash.merge_range("B27:G27", "CHARTS  \u2014  FACTOR BEHAVIOUR (updates on Run Simulation)", f_section)
 
     # =====================================================================
     # Database_Daily
@@ -304,6 +330,18 @@ def build_workbook(vba_bin):
     for i, n in enumerate(notes):
         cfg.write(11 + i, 1, n, f_label)
 
+    # Direct web refresh (optional fallback)
+    cfg.merge_range("B20:D20", "DIRECT WEB REFRESH (optional fallback)", f_section)
+    cfg.write(20, 1, "Enable web refresh (Yes / No)", f_label)
+    cfg.write(20, 3, "No", f_input)
+    cfg.data_validation("D21", {"validate": "list", "source": ["Yes", "No"]})
+    cfg.write(21, 1, "Web refresh start date", f_label)
+    cfg.write_datetime(21, 3, date(2005, 4, 1), f_input_date)
+    cfg.write(22, 1, "Web refresh end date", f_label)
+    cfg.write_datetime(22, 3, date.today(), f_input_date)
+    cfg.write(23, 1, "Downloads TRI directly from niftyindices.com (Windows Excel + internet; "
+                     "may be blocked by proxy/NSE \u2014 file import is more reliable).", f_small)
+
     # =====================================================================
     # Calc_Cache (hidden, audit/debug)
     # =====================================================================
@@ -316,6 +354,65 @@ def build_workbook(vba_bin):
     cache.set_column("A:B", 14, wb.add_format({"num_format": "dd-mmm-yyyy"}))
     cache.set_column("C:F", 12, wb.add_format({"num_format": "0.00%"}))
     cache.hide()
+
+    # =====================================================================
+    # Charts_Data (hidden) + Dashboard charts
+    # =====================================================================
+    cdw = wb.add_worksheet("Charts_Data")
+    eq_hdr = ["Date", "Momentum", "Value", "Benchmark", "Blended"]
+    for c, h in enumerate(eq_hdr):
+        cdw.write(0, c, h, f_dbhdr)
+    cdw.set_column("A:A", 12, wb.add_format({"num_format": "dd-mmm-yyyy"}))
+    cdw.set_column("B:E", 11, wb.add_format({"num_format": "0.0"}))
+    # distribution block (cols H..L); bin labels are static
+    dist_hdr = ["Return Band", "Momentum", "Value", "Benchmark", "Blended"]
+    for c, h in enumerate(dist_hdr):
+        cdw.write(0, 7 + c, h, f_dbhdr)
+    bin_labels = ["< -10%", "-10 to -5%", "-5 to 0%", "0 to 5%", "5 to 10%",
+                  "10 to 15%", "15 to 20%", "20 to 25%", "25 to 30%",
+                  "30 to 35%", "35 to 40%", "> 40%"]
+    for i, lbl in enumerate(bin_labels):
+        cdw.write(i + 1, 7, lbl)
+    cdw.set_column("H:H", 12)
+    cdw.set_column("I:L", 11, wb.add_format({"num_format": "0"}))
+    cdw.hide()
+
+    palette = {"Momentum": "#E0A106", "Value": "#1FA39B",
+               "Benchmark": "#8A9BA8", "Blended": "#0F2A43"}
+
+    # Equity curve (rebased growth of 100)
+    eq = wb.add_chart({"type": "line"})
+    for name, ci in (("Momentum", 1), ("Value", 2), ("Benchmark", 3), ("Blended", 4)):
+        col = chr(65 + ci)  # B..E
+        eq.add_series({
+            "name": name,
+            "categories": "='Charts_Data'!$A$2:$A$400",
+            "values": f"='Charts_Data'!${col}$2:${col}$400",
+            "line": {"color": palette[name], "width": 1.75},
+        })
+    eq.set_title({"name": "Growth of \u20b9100 \u2014 rebased, monthly (selected sample)"})
+    eq.set_x_axis({"num_font": {"size": 8}})
+    eq.set_y_axis({"num_font": {"size": 8}})
+    eq.set_legend({"position": "bottom"})
+    eq.set_size({"width": 720, "height": 300})
+    dash.insert_chart("B28", eq)
+
+    # Rolling-return distribution
+    dist = wb.add_chart({"type": "column"})
+    for name, ci in (("Momentum", 9), ("Value", 10), ("Benchmark", 11), ("Blended", 12)):
+        col = chr(64 + ci)  # I..L
+        dist.add_series({
+            "name": name,
+            "categories": "='Charts_Data'!$H$2:$H$13",
+            "values": f"='Charts_Data'!${col}$2:${col}$13",
+            "fill": {"color": palette[name]},
+        })
+    dist.set_title({"name": "Rolling-return distribution \u2014 window count by return band"})
+    dist.set_x_axis({"num_font": {"size": 8}})
+    dist.set_y_axis({"num_font": {"size": 8}})
+    dist.set_legend({"position": "bottom"})
+    dist.set_size({"width": 720, "height": 300})
+    dash.insert_chart("B44", dist)
 
     # ---- Named ranges ----
     names = {
@@ -330,6 +427,9 @@ def build_workbook(vba_bin):
         "cfg_MomFile": "'Config'!$D$5",
         "cfg_ValFile": "'Config'!$D$6",
         "cfg_BenFile": "'Config'!$D$7",
+        "cfg_WebEnable": "'Config'!$D$21",
+        "cfg_WebStart": "'Config'!$D$22",
+        "cfg_WebEnd": "'Config'!$D$23",
     }
     for nm, ref in names.items():
         wb.define_name(nm, "=" + ref)

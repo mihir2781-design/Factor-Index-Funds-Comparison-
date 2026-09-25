@@ -61,6 +61,8 @@ Public Sub RunSimulation()
     WriteColumn ws, 6, mBen
     WriteColumn ws, 7, mBlend
 
+    modCharts.BuildChartData sSerial, eSerial, wMom, wVal, nWin
+
     ws.Range("B25").Value = nWin
     ws.Range("B26").Value = Now
 
