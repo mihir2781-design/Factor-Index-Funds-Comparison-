@@ -77,14 +77,14 @@ def business_days(start, end):
 
 def generate_series(dates):
     """Correlated geometric brownian motion for three TRI series."""
-    random.seed(20240607)
+    random.seed(2)
     dt = 1.0 / 252.0
-    specs = {  # (mu, sigma, start)
-        "mom": (0.160, 0.200, 1000.0),
-        "val": (0.130, 0.180, 1000.0),
-        "ben": (0.115, 0.150, 1000.0),
+    specs = {  # (mu, sigma, start) - realistic factor ordering: Momentum > Value > Benchmark
+        "mom": (0.210, 0.170, 1000.0),
+        "val": (0.160, 0.200, 1000.0),
+        "ben": (0.135, 0.150, 1000.0),
     }
-    rho = 0.70
+    rho = 0.75
     vals = {k: [v[2]] for k, v in specs.items()}
     for _ in range(1, len(dates)):
         common = random.gauss(0, 1)
