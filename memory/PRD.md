@@ -31,6 +31,9 @@ Quant investors, factor-cycle analysts, SIP-vs-Lumpsum advisors, Excel power use
 - Engine logic verified via faithful Python port on identical seed data: windows generate (96/84/36), metrics sane, XIRR converges, too-short range → INSUFFICIENT DATA.
 - Final macro execution occurs inside Microsoft Excel (cannot run VBA in this Linux container).
 
+## Fixes
+- 2026-06: User reported Momentum data looked wrong (Momentum underperforming Value/Benchmark in the seed). Fixed by re-seeding synthetic generation (seed=2; Mom 21%/17%, Val 16%/20%, Ben 13.5%/15%) so Momentum is the top factor. Verified by testing agent (8/8 backend checks): full-period CAGR Momentum 23.86% > Value 19.79% > Benchmark 19.06%. Clarified to user that Database_Daily is seeded sample data; real source is NSE Indices (niftyindices.com) TRI historical downloads, importable via Config paths + Refresh Data.
+
 ## Backlog / P1-P2
 - Optional direct web-download refresh from NSE (fragile) as fallback to file import.
 - Rolling-return distribution chart / equity-curve chart on Dashboard.
