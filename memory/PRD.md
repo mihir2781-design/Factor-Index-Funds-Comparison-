@@ -41,6 +41,7 @@ Quant investors, factor-cycle analysts, SIP-vs-Lumpsum advisors, Excel power use
   - Verified by testing agent: 16/16 backend checks, incl. live NSE endpoint reachable and chart/button coexistence.
 
 ## Legacy Backlog
+- 2026-06 (it.3): Built self-contained OFFLINE HTML web simulator (/app/factor_simulator.html, served copy /app/frontend/public/simulator.html). 602KB single file, no CDN/backend. Embeds official NSE Price + TRI for 6 indices (Nifty 50, Nifty 500, Momentum 30, Momentum 50, Multicap MQ 50, Quality 50), aligned to 5331 trading days 2005-04-01..2026-09-28. Free-text Horizon (any years incl. fractional), TRI/Price toggle, 6-way custom blend, dependency-free canvas charts (equity curve + distribution). Engine verified via Node to match browser and the Python port. GitHub-Pages hostable (rename to index.html). Build: build/build_html.py + build/template.html.
 - Optional direct web-download refresh from NSE (fragile) as fallback to file import.
 - Rolling-return distribution chart / equity-curve chart on Dashboard.
 - Optional daily (vs monthly) rolling cadence toggle.
