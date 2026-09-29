@@ -7,15 +7,16 @@ indices — Momentum, Value, Quality, Multicap and benchmarks — for both **Lum
 **Live app:** open [`index.html`](index.html) in any browser, or host it on GitHub Pages.
 
 ## What it does
-- **7 indices included** (official NSE / niftyindices.com history, aligned to real
-  trading days, Apr 2005 → Sep 2026):
+- **8 indices included** (official NSE / niftyindices.com history, aligned to real
+  trading days):
   - Nifty 50
   - Nifty 500
   - Nifty 200 Momentum 30
   - Nifty 500 Momentum 50
   - Nifty500 Multicap Momentum Quality 50
   - Nifty 500 Quality 50
-  - **Nifty 500 Value 50**
+  - Nifty 500 Value 50
+  - **Nifty 50 Value 20** (data starts Jan 2009; blank before then — see note below)
 - **Price (Unadjusted)** and **TRI (Total Return)** basis toggle.
 - Custom-horizon rolling returns (any number of years, incl. fractional).
 - **Rolling N-Year Return** time-series (daily cadence for Lumpsum, 1st & 15th for SIP),
@@ -27,9 +28,15 @@ No CDN, no backend, no macros — everything is embedded in the one HTML file.
 
 ## Data workbook
 [`NSE_Index_Data_Price_TRI.xlsx`](NSE_Index_Data_Price_TRI.xlsx) contains the raw
-history for all 7 indices in two sheets:
+history for all indices in two sheets:
 - **Price (Unadjusted)** — price-return index levels (Close).
 - **TRI (Total Return)** — total-return index levels (dividends reinvested).
+
+**History alignment:** the master date axis spans **2005-04-01 → latest** (the common
+range of the long-history indices). Indices that launched later (e.g. Nifty 50 Value 20,
+which starts 2009-01-01) are left **blank before their inception** and are automatically
+skipped in any rolling window / equity point that predates their data — so the older
+indices keep their full history rather than being truncated.
 
 Source: official NSE Indices historical data — https://www.niftyindices.com/reports/historical-data
 
