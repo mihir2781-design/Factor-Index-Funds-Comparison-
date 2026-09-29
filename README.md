@@ -1,41 +1,52 @@
-# Factor Investment Simulator — Rolling Pro
+# Factor Investment Simulator (NSE)
 
-A single hardened, macro-enabled Excel workbook — **`Factor_Investment_Simulator_Rolling_Pro.xlsm`** — for comparing **Momentum**, **Value**, **Benchmark**, and a **custom blended** factor portfolio using rolling-return analytics. All heavy logic (data import, rolling windows, CAGR, exact SIP XIRR, blend engine) runs in VBA.
+A single-file, **100% offline** web app to compare rolling returns of NSE factor
+indices — Momentum, Value, Quality, Multicap and benchmarks — for both **Lumpsum
+(CAGR)** and **SIP (exact XIRR)** investing.
 
-## What you get
-- `Factor_Investment_Simulator_Rolling_Pro.xlsm` — the deliverable (open in Microsoft Excel and **Enable Macros**).
-- `vba/` — the full, auditable VBA source (also embedded in the workbook).
-- `sample_nse_exports/` — sample NSE-Indices-style TRI CSV files to test the Refresh Data flow.
-- `build_workbook.py` — reproducible build script.
+**Live app:** open [`index.html`](index.html) in any browser, or host it on GitHub Pages.
 
-## Workbook layout
-- **Dashboard** — inputs, action buttons (Refresh Data / Run Simulation / Reset Inputs), status line, and the results comparison grid.
-- **Database_Daily** — normalized daily TRI history (Date, Momentum, Value, Benchmark). Pre-seeded with ~17 years (2009–2025) of realistic synthetic data so it runs out of the box.
-- **Config** — CSV import file paths + assumptions/notes.
-- **Calc_Cache** — hidden per-window audit log (entry/maturity dates + per-asset returns).
+## What it does
+- **7 indices included** (official NSE / niftyindices.com history, aligned to real
+  trading days, Apr 2005 → Sep 2026):
+  - Nifty 50
+  - Nifty 500
+  - Nifty 200 Momentum 30
+  - Nifty 500 Momentum 50
+  - Nifty500 Multicap Momentum Quality 50
+  - Nifty 500 Quality 50
+  - **Nifty 500 Value 50**
+- **Price (Unadjusted)** and **TRI (Total Return)** basis toggle.
+- Custom-horizon rolling returns (any number of years, incl. fractional).
+- **Rolling N-Year Return** time-series (daily cadence for Lumpsum, 1st & 15th for SIP),
+  **Equity Curve**, and a **2% - bin return distribution** histogram.
+- **Jump to date** box + hover crosshair to inspect any window's start→end values.
+- Custom blended portfolio with weight allocation across all sleeves.
 
-## How to use
-1. Open the workbook, **Enable Macros**.
-2. *(Optional)* On **Config**, set the three CSV paths, then click **Refresh Data** to import official NSE exports (Date + TRI columns auto-detected; histories merged, sorted, forward-filled). Leave paths blank to keep the seeded data.
-3. On **Dashboard**, enter: Mode (`SIP`/`Lumpsum`), Amount (₹), Horizon (`3`/`5`/`10`), Start/End dates, and Momentum% + Value% (must total **100**).
-4. Click **Run Simulation**.
+No CDN, no backend, no macros — everything is embedded in the one HTML file.
 
-## Engine
-- **Lumpsum → rolling CAGR.** **SIP → exact rolling XIRR** (native VBA Newton–Raphson with a bisection fallback — no Excel-function dependency).
-- Rolling windows are generated at a **monthly cadence** inside the selected sample period; each window needs a full N-year horizon that ends on/before the End date.
-- **Blended portfolio** applies a fixed Momentum/Value split at every contribution — no rebalancing afterward.
-- Outputs per asset: Average Rolling Return, Worst-Case Floor, Best-Case Peak, P(return > 12%), P(return > 15%), and Final Projected Maturity Corpus (₹).
+## Data workbook
+[`NSE_Index_Data_Price_TRI.xlsx`](NSE_Index_Data_Price_TRI.xlsx) contains the raw
+history for all 7 indices in two sheets:
+- **Price (Unadjusted)** — price-return index levels (Close).
+- **TRI (Total Return)** — total-return index levels (dividends reinvested).
 
-## Hard validation (never silently corrected)
-- Mode must be exactly `SIP` or `Lumpsum`; Horizon exactly `3`/`5`/`10`; Amount > 0.
-- Momentum % + Value % must equal **100** (else `INVALID ALLOCATION`).
-- Start < End; a range shorter than the horizon returns **`INSUFFICIENT DATA`**, as does any sample with no complete rolling window.
+Source: official NSE Indices historical data — https://www.niftyindices.com/reports/historical-data
 
-## Rebuild
+## Hosting on GitHub Pages
+The app is `index.html` at the repo root, so once GitHub Pages is enabled
+(**Settings → Pages → Source: your branch / root**) it is served directly at
+`https://<username>.github.io/<repo>/`.
+
+## Refreshing the data
+The data is embedded in the HTML. To pull the latest values from NSE and regenerate
+everything, run the build scripts (in `build/`, not committed to Git):
+
 ```bash
-pip install openpyxl xlsxwriter pyOpenVBA
-python3 build_workbook.py          # rebuild the .xlsm
-python3 build/make_samples.py      # regenerate sample NSE CSVs
+python build/refresh_data.py       # fetch latest Price + TRI, snapshot, rebuild index.html
+python build/make_excel.py         # regenerate NSE_Index_Data_Price_TRI.xlsx
+# offline rebuild from the last snapshot:
+python build/refresh_data.py --from-cache
 ```
 
-> Note: this is an Excel/VBA artifact — verification here was done by (a) structural validation of the embedded VBA project and OOXML wiring, and (b) a faithful Python port of the engine run against the identical seed data (window generation, CAGR, XIRR, and edge cases). Final macro execution happens inside Microsoft Excel on macro-enabled open.
+*For research / education only. Not investment advice.*
