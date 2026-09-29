@@ -52,6 +52,12 @@
   .charts{margin-top:22px;display:grid;grid-template-columns:1fr;gap:22px}
   .chartcard h3{margin:0 0 4px;font-size:14px;color:var(--navy)}
   .chartcard .sub{font-size:11.5px;color:var(--muted);margin:0 0 10px}
+  .jump{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+  .jump label{font-size:12px;font-weight:700;color:var(--navy)}
+  .jump input[type=date]{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;color:var(--ink)}
+  .jump .jbtn{flex:0 0 auto;padding:7px 14px;font-size:12.5px;border-radius:8px;background:var(--navy);color:#fff}
+  .jump .jbtn:hover{background:#173a5c}
+  .jump .jbtn.alt{background:#E7EDF3;color:var(--navy)} .jump .jbtn.alt:hover{background:#dbe4ec}
   canvas{width:100%;height:330px;display:block;cursor:crosshair}
   .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:12px}
   .legend span{display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
@@ -123,6 +129,12 @@
       <div class="card chartcard">
         <h3 id="rollTitle">Rolling 5-Year Return (plotted at each window's end date)</h3>
         <p class="sub">Each point = the annualised return of one N-year window ending on that date. Hover to see start→end index values behind the number.</p>
+        <div class="jump">
+          <label for="jumpDate">Jump to date</label>
+          <input id="jumpDate" type="date" data-testid="input-jumpdate">
+          <button class="jbtn" id="jumpBtn" data-testid="jump-btn">Go</button>
+          <button class="jbtn alt" id="jumpLatest" data-testid="jump-latest-btn">Latest</button>
+        </div>
         <canvas id="rollChart" data-testid="roll-chart"></canvas>
         <div class="readout" id="rollReadout" data-testid="roll-readout"></div>
         <div class="legend" id="rollLegend"></div>
@@ -292,6 +304,7 @@
     lastDist={series:distSeries,xLabels:binLabels,yFmt:v=>v.toFixed(0)};
 
     draw();renderRollReadout(lastRoll.hoverIndex);renderEqReadout(lastEquity.hoverIndex);
+    syncJumpInput();
   }
 
   function drawLine(canvas,legendEl,st){
@@ -378,6 +391,20 @@
   }
   attachHover(document.getElementById("rollChart"),()=>lastRoll,i=>{drawLine(document.getElementById("rollChart"),document.getElementById("rollLegend"),lastRoll);renderRollReadout(i);});
   attachHover(document.getElementById("equityChart"),()=>lastEquity,i=>{drawLine(document.getElementById("equityChart"),document.getElementById("equityLegend"),lastEquity);renderEqReadout(i);});
+
+  const jumpEl=document.getElementById("jumpDate");
+  function nearestIndex(dateArr,targetTS){let best=0,bestD=Infinity;for(let i=0;i<dateArr.length;i++){const d=Math.abs(Date.parse(dateArr[i])-targetTS);if(d<bestD){bestD=d;best=i;}}return best;}
+  function syncJumpInput(){if(!lastRoll){return;}jumpEl.min=lastRoll.dates[0];jumpEl.max=lastRoll.dates[lastRoll.dates.length-1];jumpEl.value=lastRoll.dates[lastRoll.hoverIndex];}
+  function jumpToDate(iso){if(!lastRoll||!iso){return;}const t=Date.parse(iso);
+    const ri=nearestIndex(lastRoll.dates,t);lastRoll.hoverIndex=ri;
+    drawLine(document.getElementById("rollChart"),document.getElementById("rollLegend"),lastRoll);renderRollReadout(ri);
+    if(lastEquity){const ei=nearestIndex(lastEquity.dates,t);lastEquity.hoverIndex=ei;
+      drawLine(document.getElementById("equityChart"),document.getElementById("equityLegend"),lastEquity);renderEqReadout(ei);}
+    jumpEl.value=lastRoll.dates[ri];
+    document.getElementById("rollChart").scrollIntoView({behavior:"smooth",block:"center"});}
+  document.getElementById("jumpBtn").addEventListener("click",()=>jumpToDate(jumpEl.value));
+  jumpEl.addEventListener("change",()=>jumpToDate(jumpEl.value));
+  document.getElementById("jumpLatest").addEventListener("click",()=>{if(lastRoll)jumpToDate(lastRoll.dates[lastRoll.dates.length-1]);});
 
   document.getElementById("runBtn").addEventListener("click",run);
   document.getElementById("resetBtn").addEventListener("click",()=>{setDefaults();
