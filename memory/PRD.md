@@ -46,3 +46,5 @@ Quant investors, factor-cycle analysts, SIP-vs-Lumpsum advisors, Excel power use
 - Rolling-return distribution chart / equity-curve chart on Dashboard.
 - Optional daily (vs monthly) rolling cadence toggle.
 - Per-index missing-file handling that still runs single-asset columns.
+
+- 2026-06 (it.4): Added 7th index Nifty 500 Value 50 (key `v50`, color #2E86DE blue) with official Price + TRI fetched fresh from niftyindices.com; re-ran build/build_html.py (695KB, 5331 aligned days, range unchanged 2005-04-01..2026-09-28). Appears in picker/weights/table/charts/legend. Reduced Lumpsum rolling-return line width 1.8->1.1px (SIP unchanged, equity curve unchanged) — drawLine() keys off st.mode==="Lumpsum". Verified via screenshot.
