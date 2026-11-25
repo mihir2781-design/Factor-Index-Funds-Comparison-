@@ -1,0 +1,14 @@
+{
+  "summary": "Retest of the preview ROOT redirect fix. Going to the root URL (/) now redirects to /simulator.html: title 'Factor Investment Simulator — Rolling Pro (Web)', heading visible, run-btn present, no 'Building something incredible' text. The app auto-ran: results-table and fullperiod-table each have 9 rows (8 indices + Custom Blend) with finite values. Equity, roll and dist charts are visible. Switching mode between SIP and Lumpsum and clicking Run works (SIP: 234 windows, Lumpsum: 2414 windows), with no NaN/Infinity. Opening /simulator.html directly also works. There were 0 console errors and 0 page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": ["App.js redirects on the client after React mounts, so the root briefly shows the 'Opening…' fallback first. That is fine. A server-side redirect or a meta refresh in public/index.html would be faster but is optional."],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Root / redirects to /simulator.html through window.location.replace in App.js. The static app is at frontend/public/simulator.html. Key testids: run-btn, input-mode (SIP/Lumpsum), results-table, fullperiod-table, status, equity-chart, roll-chart, dist-chart."
+}
