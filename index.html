@@ -118,9 +118,10 @@
 
     <div class="card">
       <h2>Rolling Return Comparison</h2>
+      <p class="sub" id="rollCompNote">Typical-window projection using the average of all rolling windows.</p>
       <div style="overflow-x:auto"><table data-testid="results-table">
         <thead><tr><th>Index / Portfolio</th><th>Avg Rolling</th><th>Worst Floor</th><th>Best Peak</th>
-          <th>P(&gt;12%)</th><th>P(&gt;15%)</th><th>Proj. Corpus (₹)</th></tr></thead>
+          <th>P(&gt;12%)</th><th>P(&gt;15%)</th><th id="projCol">Proj. value of ₹1L</th></tr></thead>
         <tbody id="tbody"></tbody></table></div>
       <div class="meta" id="meta"></div>
     </div>
@@ -291,9 +292,9 @@
       if(n===0)return {avg:null,worst:null,best:null,p12:null,p15:null,corpus:null,n:0};
       let s=0,mn=xs[0],mx=xs[0],c12=0,c15=0;
       for(const x of xs){s+=x;if(x<mn)mn=x;if(x>mx)mx=x;if(x>0.12)c12++;if(x>0.15)c15++;}
-      const avg=s/n;let corpus;
-      if(isSIP){const mth=Math.pow(1+avg,1/12)-1,nm=Math.round(h*12);corpus=Math.abs(mth)<1e-12?amount*nm:amount*((Math.pow(1+mth,nm)-1)/mth)*(1+mth);}
-      else corpus=amount*Math.pow(1+avg,h);
+      const avg=s/n;let corpus;const PROJ_AMT=100000;
+      if(isSIP){const mth=Math.pow(1+avg,1/12)-1,nm=Math.round(h*12);corpus=Math.abs(mth)<1e-12?PROJ_AMT*nm:PROJ_AMT*((Math.pow(1+mth,nm)-1)/mth)*(1+mth);}
+      else corpus=PROJ_AMT*Math.pow(1+avg,h);
       return {avg,worst:mn,best:mx,p12:c12/n,p15:c15/n,corpus,n};}
 
     const tb=document.getElementById("tbody");tb.innerHTML="";
@@ -341,6 +342,10 @@
       : `A single ${inr(amount)} invested on ${sv}, valued on the last trading day. CAGR = point-to-point annualised return.`;
 
     const cad=isSIP?"1st & 15th (twice-monthly)":"daily";
+    document.getElementById("projCol").textContent=isSIP?"Proj. value of ₹1L/mo SIP":"Proj. value of ₹1L lumpsum";
+    document.getElementById("rollCompNote").textContent=isSIP
+      ? "Typical-window estimate: a ₹1,00,000 monthly SIP grown at each index's AVERAGE rolling window return over the horizon. Fixed at ₹1L/month, independent of the Amount input. For the actual start→end outcome, see the Full-Period Result table below."
+      : "Typical-window estimate: a one-time ₹1,00,000 grown at each index's AVERAGE rolling window return over the horizon. Fixed at ₹1L, independent of the Amount input. For the actual start→end outcome, see the Full-Period Result table below.";
     document.getElementById("meta").textContent=`${nWin} rolling windows · ${isSIP?"SIP (exact XIRR)":"Lumpsum (CAGR)"} · ${h}-yr horizon · ${cad} cadence · ${basis==="tri"?"TRI":"Price"} basis · ${sv} → ${ev}`;
     status.className="status ok";status.textContent=`SIMULATION COMPLETE — ${nWin} rolling windows (${mode}, ${h}Y, ${basis.toUpperCase()}).`;
     document.getElementById("rollTitle").textContent=`Rolling ${h}-Year Return (plotted at each window's end date)`;
