@@ -13,6 +13,7 @@
   header{background:var(--navy);color:#fff;padding:18px 26px;}
   header h1{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:22px;letter-spacing:.3px}
   header p{margin:4px 0 0;color:#C9D6E2;font-size:12.5px}
+  .asof{display:inline-block;margin-left:4px;padding:1px 9px;border-radius:10px;background:rgba(255,255,255,.15);color:#fff;font-size:11px;font-weight:700}
   .wrap{max-width:1240px;margin:22px auto;padding:0 18px;display:grid;grid-template-columns:340px 1fr;gap:22px;align-items:start}
   @media(max-width:960px){.wrap{grid-template-columns:1fr}}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 3px rgba(15,42,67,.06);padding:18px}
@@ -77,7 +78,8 @@
 <body>
 <header>
   <h1>Factor Investment Simulator — Rolling Pro</h1>
-  <p>Official NSE history (niftyindices.com) · Price &amp; TRI · SIP (exact XIRR) &amp; Lumpsum (CAGR) · runs 100% offline</p>
+  <p>Official NSE history (niftyindices.com) · Price &amp; TRI · SIP (exact XIRR) &amp; Lumpsum (CAGR) · runs 100% offline
+    <span id="asOf" class="asof"></span></p>
 </header>
 
 <div class="wrap">
@@ -177,6 +179,9 @@
   const TS=D.dates.map(s=>Date.parse(s)), N=TS.length, YMS=365.25*24*3600*1000;
   const COLORS={n50:"#8A9BA8",n500:"#5A6B7B",mom30:"#E0A106",mom50:"#C0392B",mmq50:"#1FA39B",q50:"#7E57C2",v50:"#2E86DE",v20:"#16A34A",BLEND:"#0F2A43"};
   const MS=[];let prev="";for(let i=0;i<N;i++){const k=D.dates[i].slice(0,7);if(k!==prev){MS.push(i);prev=k;}}
+  (()=>{const last=D.dates[N-1];const d=new Date(last+"T00:00:00Z");
+    const fmt=d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"});
+    const el=document.getElementById("asOf");if(el)el.textContent="Data through "+fmt;})();
   const DEF_W={n50:0,n500:0,mom30:50,mom50:50,mmq50:0,q50:0,v50:0,v20:0};
   const pct=x=>(x==null||isNaN(x))?"—":(x*100).toFixed(2)+"%";
   const inr=x=>(x==null||isNaN(x))?"—":"₹"+Math.round(x).toLocaleString("en-IN");

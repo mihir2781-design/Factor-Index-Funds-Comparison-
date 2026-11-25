@@ -46,14 +46,30 @@ The app is `index.html` at the repo root, so once GitHub Pages is enabled
 `https://<username>.github.io/<repo>/`.
 
 ## Refreshing the data
-The data is embedded in the HTML. To pull the latest values from NSE and regenerate
-everything, run the build scripts (in `build/`, not committed to Git):
 
+### Automatic (GitHub Actions) — recommended
+This repo ships with `.github/workflows/refresh.yml`. Once pushed to GitHub it will,
+**every Saturday** (and whenever you trigger it manually), fetch the latest Price + TRI
+for all indices, rebuild `index.html` + the Excel workbook, and commit them back — so the
+live GitHub Pages site stays current with **no local work**.
+
+To enable it after pushing:
+1. Open your repo → **Settings → Actions → General** → under *Workflow permissions* pick
+   **Read and write permissions** → Save.
+2. Open the **Actions** tab → enable workflows if prompted. You can click
+   **Run workflow** on *"Refresh NSE index data"* to test it immediately.
+
+Change the schedule by editing the `cron:` line in `.github/workflows/refresh.yml`
+(e.g. `0 3 1 * *` = monthly on the 1st).
+
+### Manual (local)
 ```bash
+pip install -r build/requirements.txt
 python build/refresh_data.py       # fetch latest Price + TRI, snapshot, rebuild index.html
 python build/make_excel.py         # regenerate NSE_Index_Data_Price_TRI.xlsx
-# offline rebuild from the last snapshot:
-python build/refresh_data.py --from-cache
+python build/refresh_data.py --from-cache   # offline rebuild from the last snapshot
+git add -A && git commit -m "Refresh data" && git push
 ```
 
 *For research / education only. Not investment advice.*
+
