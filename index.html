@@ -125,6 +125,15 @@
       <div class="meta" id="meta"></div>
     </div>
 
+    <div class="card">
+      <h2 id="fpTitle">Full-Period Result (Sample Start → End)</h2>
+      <div style="overflow-x:auto"><table data-testid="fullperiod-table">
+        <thead><tr><th>Index / Portfolio</th><th id="fpColReturn">Period CAGR</th><th>Total Invested (₹)</th>
+          <th>Final Value (₹)</th><th>Gain</th></tr></thead>
+        <tbody id="fpbody"></tbody></table></div>
+      <div class="meta" id="fpMeta"></div>
+    </div>
+
     <div class="charts">
       <div class="card chartcard">
         <h3 id="rollTitle">Rolling 5-Year Return (plotted at each window's end date)</h3>
@@ -140,8 +149,8 @@
         <div class="legend" id="rollLegend"></div>
       </div>
       <div class="card chartcard">
-        <h3>Equity Curve — Growth of ₹100 (rebased, monthly)</h3>
-        <p class="sub">Cumulative growth of a single ₹100 invested at the sample start. Hover to read the actual index value at any date.</p>
+        <h3 id="equityTitle">Equity Curve</h3>
+        <p class="sub" id="equitySub">Growth over the sample period. Hover to read values at any date.</p>
         <canvas id="equityChart" data-testid="equity-chart"></canvas>
         <div class="readout" id="equityReadout" data-testid="equity-readout"></div>
         <div class="legend" id="equityLegend"></div>
@@ -171,6 +180,8 @@
   const pct=x=>(x==null||isNaN(x))?"—":(x*100).toFixed(2)+"%";
   const inr=x=>(x==null||isNaN(x))?"—":"₹"+Math.round(x).toLocaleString("en-IN");
   const idxfmt=x=>(x==null||isNaN(x))?"—":x.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const inrShort=v=>{if(v==null||isNaN(v))return "—";v=Math.round(v);const s=v<0?"-":"";v=Math.abs(v);
+    if(v>=1e7)return s+"₹"+(v/1e7).toFixed(2)+"Cr";if(v>=1e5)return s+"₹"+(v/1e5).toFixed(2)+"L";if(v>=1e3)return s+"₹"+(v/1e3).toFixed(0)+"k";return s+"₹"+v;};
 
   const picker=document.getElementById("picker");
   KEYS.forEach(k=>{const c=document.createElement("label");c.className="chip on";
@@ -291,6 +302,42 @@
     vis.forEach(k=>tb.insertAdjacentHTML("beforeend",rowHtml(LAB[k],summ(ret[k]),COLORS[k])));
     if(useBlend)tb.insertAdjacentHTML("beforeend",rowHtml("Custom Blend",summ(retB),COLORS.BLEND,"blend"));
 
+    // ===== Full-period result (actual sample start -> end) =====
+    const sipAnchorsFull=(()=>{const raw=[];const y0=new Date(startTS).getUTCFullYear(),y1=new Date(endTS).getUTCFullYear();
+      for(let y=y0;y<=y1;y++)for(let mo=0;mo<12;mo++)for(const dy of [1,15]){const ms=Date.UTC(y,mo,dy);if(ms>=startTS&&ms<=endTS)raw.push(ms);}
+      raw.sort((a,b)=>a-b);const idxs=[];for(const ms of raw){const ci=lowerBound(ms);if(ci>=firstIdx&&ci<=lastIdx)idxs.push(ci);}return idxs;})();
+    function firstNN(k){for(let i=firstIdx;i<=lastIdx;i++)if(S[k][i]!=null)return i;return -1;}
+    function lastNN(k){for(let i=lastIdx;i>=firstIdx;i--)if(S[k][i]!=null)return i;return -1;}
+    function fpIndex(k){const ai=firstNN(k),bi=lastNN(k);if(ai<0||bi<0||bi<=ai)return null;
+      if(!isSIP){const yrs=(TS[bi]-TS[ai])/YMS,cagr=Math.pow(S[k][bi]/S[k][ai],1/yrs)-1,fv=amount*(S[k][bi]/S[k][ai]);
+        return {ret:cagr,invested:amount,finalVal:fv,sd:D.dates[ai],ed:D.dates[bi],yrs};}
+      let units=0,n=0;const cf=[];const t0=TS[sipAnchorsFull.length?sipAnchorsFull[0]:ai];
+      for(const ci of sipAnchorsFull){if(ci>bi)break;if(S[k][ci]==null)continue;units+=amount/S[k][ci];n++;cf.push({a:-amount,t:(TS[ci]-t0)/YMS});}
+      if(n===0)return null;const fv=units*S[k][bi];cf.push({a:fv,t:(TS[bi]-t0)/YMS});
+      return {ret:xirr(cf),invested:amount*n,finalVal:fv,sd:D.dates[firstNN(k)],ed:D.dates[bi],yrs:(TS[bi]-t0)/YMS,n};}
+    function fpBlend(){const activeK=KEYS.filter(k=>w[k]>0);if(activeK.length===0)return null;
+      let ai=-1;for(let i=firstIdx;i<=lastIdx;i++){if(activeK.every(k=>S[k][i]!=null)){ai=i;break;}}
+      const bi=lastIdx;if(ai<0||bi<=ai||activeK.some(k=>S[k][bi]==null))return null;
+      if(!isSIP){let gf=0;activeK.forEach(k=>gf+=w[k]*(S[k][bi]/S[k][ai]));const yrs=(TS[bi]-TS[ai])/YMS;
+        return {ret:Math.pow(gf,1/yrs)-1,invested:amount,finalVal:amount*gf,sd:D.dates[ai],ed:D.dates[bi],yrs};}
+      const units={};activeK.forEach(k=>units[k]=0);let n=0;const cf=[];const t0=TS[sipAnchorsFull.length?sipAnchorsFull[0]:ai];
+      for(const ci of sipAnchorsFull){if(ci>bi)break;if(activeK.some(k=>S[k][ci]==null))continue;activeK.forEach(k=>units[k]+=w[k]*amount/S[k][ci]);n++;cf.push({a:-amount,t:(TS[ci]-t0)/YMS});}
+      if(n===0)return null;let fv=0;activeK.forEach(k=>fv+=units[k]*S[k][bi]);cf.push({a:fv,t:(TS[bi]-t0)/YMS});
+      return {ret:xirr(cf),invested:amount*n,finalVal:fv,sd:D.dates[ai],ed:D.dates[bi],yrs:(TS[bi]-t0)/YMS,n};}
+    const fpb=document.getElementById("fpbody");fpb.innerHTML="";
+    const fpRow=(name,fp,color,cls)=>{const sw=color?`<span class="sw" style="background:${color}"></span>`:"";
+      if(!fp)return `<tr class="${cls||''}"><td>${sw}${name}</td><td colspan="4" class="se">no data in this period</td></tr>`;
+      const mult=fp.finalVal/fp.invested,gain=`<span class="${mult>=1?'pos':'neg'}">${mult.toFixed(2)}× &nbsp;(${inrShort(fp.finalVal-fp.invested)})</span>`;
+      const rc=`<span class="${fp.ret>=0?'pos':'neg'}">${pct(fp.ret)}</span>`;
+      return `<tr class="${cls||''}"><td>${sw}${name}</td><td>${rc}</td><td>${inrShort(fp.invested)}</td><td>${inrShort(fp.finalVal)}</td><td>${gain}</td></tr>`;};
+    vis.forEach(k=>fpb.insertAdjacentHTML("beforeend",fpRow(LAB[k],fpIndex(k),COLORS[k])));
+    if(useBlend)fpb.insertAdjacentHTML("beforeend",fpRow("Custom Blend",fpBlend(),COLORS.BLEND,"blend"));
+    document.getElementById("fpColReturn").textContent=isSIP?"Period XIRR":"Period CAGR";
+    document.getElementById("fpTitle").textContent=`Full-Period Result — ${isSIP?"SIP (XIRR)":"Lumpsum (CAGR)"} · ${sv} → ${ev}`;
+    document.getElementById("fpMeta").textContent=isSIP
+      ? `One ${inr(amount)} installment on the 1st & 15th of every month from ${sv} to ${ev}, valued on the last trading day. XIRR = money-weighted annual return.`
+      : `A single ${inr(amount)} invested on ${sv}, valued on the last trading day. CAGR = point-to-point annualised return.`;
+
     const cad=isSIP?"1st & 15th (twice-monthly)":"daily";
     document.getElementById("meta").textContent=`${nWin} rolling windows · ${isSIP?"SIP (exact XIRR)":"Lumpsum (CAGR)"} · ${h}-yr horizon · ${cad} cadence · ${basis==="tri"?"TRI":"Price"} basis · ${sv} → ${ev}`;
     status.className="status ok";status.textContent=`SIMULATION COMPLETE — ${nWin} rolling windows (${mode}, ${h}Y, ${basis.toUpperCase()}).`;
@@ -302,16 +349,33 @@
     lastRoll={series:rollSeries,xLabels:endDates,dates:endDates,sIdx,eIdx,S,keys:vis,useBlend,
       yFmt:v=>(v*100).toFixed(0)+"%",baseZero:false,zeroLine:true,hoverIndex:endDates.length-1,mode,h,basisLabel:basis==="tri"?"TRI":"Price"};
 
-    // equity curve (monthly rebased; each series rebased at its own first available month)
+    // equity curve — SIP shows SIP portfolio value + amount invested; Lumpsum shows value of the lumpsum
     const eqIdx=MS.filter(e=>e>=firstIdx&&e<=lastIdx);
-    const eqSeries=vis.map(k=>{const vals=eqIdx.map(i=>S[k][i]);const base=vals.find(v=>v!=null);
-      return {key:k,label:LAB[k],color:COLORS[k],data:vals.map(v=>v==null?null:100*v/base),actual:vals};});
-    if(useBlend){const activeK=KEYS.filter(k=>w[k]>0);const bases={};let based=false;
-      const data=eqIdx.map(i=>{if(activeK.some(k=>S[k][i]==null))return null;
-        if(!based){activeK.forEach(k=>bases[k]=S[k][i]);based=true;}
-        let v=0;activeK.forEach(k=>v+=w[k]*100*(S[k][i]/bases[k]));return v;});
-      eqSeries.push({key:"BLEND",label:"Custom Blend",color:COLORS.BLEND,data,actual:null});}
-    lastEquity={series:eqSeries,dates:eqIdx.map(i=>D.dates[i]),xLabels:eqIdx.map(i=>D.dates[i]),yFmt:v=>v.toFixed(0),baseZero:false,hoverIndex:eqIdx.length-1,basisLabel:basis==="tri"?"TRI":"Price"};
+    const eqSeries=[];
+    if(isSIP){
+      vis.forEach(k=>{let ci=0,units=0;const data=eqIdx.map(i=>{
+        while(ci<sipAnchorsFull.length&&sipAnchorsFull[ci]<=i){const ai=sipAnchorsFull[ci];if(S[k][ai]!=null)units+=amount/S[k][ai];ci++;}
+        const px=S[k][i];return (px==null||units===0)?null:units*px;});
+        eqSeries.push({key:k,label:LAB[k],color:COLORS[k],data,actual:null});});
+      if(useBlend){const activeK=KEYS.filter(k=>w[k]>0);let ci=0;const units={};activeK.forEach(k=>units[k]=0);
+        const data=eqIdx.map(i=>{while(ci<sipAnchorsFull.length&&sipAnchorsFull[ci]<=i){const ai=sipAnchorsFull[ci];if(activeK.every(k=>S[k][ai]!=null))activeK.forEach(k=>units[k]+=w[k]*amount/S[k][ai]);ci++;}
+          if(activeK.some(k=>S[k][i]==null))return null;let v=0;activeK.forEach(k=>v+=units[k]*S[k][i]);return v===0?null:v;});
+        eqSeries.push({key:"BLEND",label:"Custom Blend",color:COLORS.BLEND,data,actual:null});}
+      let ac=0,p=0;const investedRamp=eqIdx.map(i=>{while(p<sipAnchorsFull.length&&sipAnchorsFull[p]<=i){ac++;p++;}return ac>0?amount*ac:null;});
+      eqSeries.push({key:"INV",label:"Amount Invested",color:"#9aa8b5",data:investedRamp,actual:null,dashed:true});
+    }else{
+      vis.forEach(k=>{const vals=eqIdx.map(i=>S[k][i]);const base=vals.find(v=>v!=null);
+        eqSeries.push({key:k,label:LAB[k],color:COLORS[k],data:vals.map(v=>v==null?null:amount*v/base),actual:vals});});
+      if(useBlend){const activeK=KEYS.filter(k=>w[k]>0);const bases={};let based=false;
+        const data=eqIdx.map(i=>{if(activeK.some(k=>S[k][i]==null))return null;if(!based){activeK.forEach(k=>bases[k]=S[k][i]);based=true;}
+          let v=0;activeK.forEach(k=>v+=w[k]*amount*(S[k][i]/bases[k]));return v;});
+        eqSeries.push({key:"BLEND",label:"Custom Blend",color:COLORS.BLEND,data,actual:null});}
+    }
+    lastEquity={series:eqSeries,dates:eqIdx.map(i=>D.dates[i]),xLabels:eqIdx.map(i=>D.dates[i]),yFmt:inrShort,baseZero:isSIP,mode,hoverIndex:eqIdx.length-1,basisLabel:basis==="tri"?"TRI":"Price",isSIP};
+    document.getElementById("equityTitle").textContent=isSIP?"Equity Curve — SIP value vs amount invested":"Equity Curve — value of your lumpsum";
+    document.getElementById("equitySub").textContent=isSIP
+      ? `Value of a ${inr(amount)} SIP (1st & 15th) over the period, vs the cumulative amount invested (grey). Hover to read values.`
+      : `Growth of a single ${inr(amount)} invested at the sample start. Hover to read the value and index level at any date.`;
 
     // distribution — fixed return-band buckets, bars
     const DIST_LABELS=["<0%","0–8%","8–12%","12–15%","15–20%",">20%"];
@@ -344,8 +408,10 @@
     ctx.strokeStyle="#c7d2dc";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(PL,PT);ctx.lineTo(PL,PT+H);ctx.lineTo(PL+W,PT+H);ctx.stroke();
     if(st.hoverIndex!=null&&st.hoverIndex>=0&&st.hoverIndex<n){const hx=X(st.hoverIndex);
       ctx.strokeStyle="#0F2A43";ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(hx,PT);ctx.lineTo(hx,PT+H);ctx.stroke();ctx.setLineDash([]);}
-    st.series.forEach(s=>{ctx.strokeStyle=s.color;ctx.lineWidth=(st.mode==="Lumpsum")?1.1:1.8;ctx.beginPath();let started=false;
-      s.data.forEach((v,i)=>{if(v==null){started=false;return;}const x=X(i),y=Y(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);});ctx.stroke();
+    st.series.forEach(s=>{ctx.strokeStyle=s.color;ctx.lineWidth=(st.mode==="Lumpsum")?1.1:1.8;
+      if(s.dashed)ctx.setLineDash([5,4]);else ctx.setLineDash([]);
+      ctx.beginPath();let started=false;
+      s.data.forEach((v,i)=>{if(v==null){started=false;return;}const x=X(i),y=Y(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);});ctx.stroke();ctx.setLineDash([]);
       if(st.hoverIndex!=null){const v=s.data[st.hoverIndex];if(v!=null){ctx.fillStyle=s.color;ctx.beginPath();ctx.arc(X(st.hoverIndex),Y(v),3.2,0,7);ctx.fill();}}});
     legendEl.innerHTML=st.series.map(s=>`<span><i style="background:${s.color}"></i>${s.label}</span>`).join("");
   }
@@ -401,10 +467,11 @@
     const items=lastEquity.series.map(s=>{
       const dv=s.data[i];
       if(dv==null){return `<div class="ritem"><i style="background:${s.color}"></i><span class="nm">${s.label}</span><span class="se">—</span></div>`;}
-      const actual=(s.actual!=null)?`<span class="ret">${idxfmt(s.actual[i])}</span>`:`<span class="ret">${dv.toFixed(1)}</span> <span class="se">(rebased)</span>`;
-      const rb=(s.actual!=null)?`<span class="se">₹100→${dv.toFixed(1)}</span>`:"";
-      return `<div class="ritem"><i style="background:${s.color}"></i><span class="nm">${s.label}</span>${rb} ${actual}</div>`;}).join("");
-    el.innerHTML=`<div class="rhead"><span>${date} &nbsp;·&nbsp; ${lastEquity.basisLabel} index value</span><span class="hint">move mouse over the chart</span></div><div class="rgrid">${items}</div>`;
+      let sub="";
+      if(s.actual!=null&&s.actual[i]!=null)sub=`<span class="se">${lastEquity.basisLabel} ${idxfmt(s.actual[i])}</span>`;
+      return `<div class="ritem"><i style="background:${s.color}"></i><span class="nm">${s.label}</span>${sub}<span class="ret">${inr(dv)}</span></div>`;}).join("");
+    const head=lastEquity.isSIP?`${date} &nbsp;·&nbsp; SIP portfolio value`:`${date} &nbsp;·&nbsp; lumpsum value`;
+    el.innerHTML=`<div class="rhead"><span>${head}</span><span class="hint">move mouse over the chart</span></div><div class="rgrid">${items}</div>`;
   }
 
   function attachHover(canvas,getState,onIndex){
