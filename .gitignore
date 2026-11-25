@@ -26,9 +26,12 @@ next-env.d.ts
 *.tsbuildinfo
 
 # Production builds
-/build
+/frontend/build
 dist/
 dist
+
+# Data-tool build scripts ARE tracked (/app/build); only ignore dated snapshots
+/build/data_snapshots/2*.json
 
 # Environment files (comprehensive coverage)
 
