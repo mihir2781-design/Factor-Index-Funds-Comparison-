@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only test of the new Full-Period Result panel and SIP/Lumpsum equity curves in /simulator.html (preview URL). For each row I recomputed the numbers myself in the browser from window.NSE_DATA (TRI). Runs: Lumpsum and SIP, each from 2010-01-01 and 2006-01-01, plus the SIP blend. Every displayed CAGR/XIRR, Total Invested and Final Value matched my numbers (CAGR/XIRR within 0.06pp, rupee amounts within 0.6%). This held for all 8 indices and the Custom Blend. Sanity: Nifty 50 lumpsum 2010 = 10.50% CAGR, ₹1.33L. SIP 2010 = 402 installments = ₹1.005Cr invested, Nifty 50 XIRR 11.12%. V20 from 2006 computes from 2009-01-01 (13.31% XIRR, 426 installments) and the other 7 use the full 2006 span. No NaN on the page and no console or page errors. Headers, titles, the grey dashed 'Amount Invested' series (SIP only), the ₹Cr/₹L axis and both hover readouts all behave as specified. Found 4 non-blocking issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Full-Period table on error/reset", "issue": "setErr() and the Reset handler clear #tbody, #meta and the readouts but not #fpbody, #fpTitle or #fpMeta. After an error (e.g. horizon=30 or weights=80%) or after Reset, the old full-period results stay on screen next to the error status. Verified: 9 stale rows remained.", "selector": "#fpbody", "priority": "MEDIUM"},
+      {"component": "Equity curve sampling", "issue": "eqIdx = MS (first trading day of each month), so the curve does not start at the sample start or end at the sample end. Start 2010-01-20: the first equity point is 2010-02-01 at ₹25,000 (lumpsum is re-based to Feb 1, not the start date). End 2026-09-29: the last point is 2026-09-01. As a result the equity readout (Nifty 50 lumpsum ₹1,40,639; SIP Amount Invested ₹1,00,25,000) disagrees with the Full-Period table (₹1.33L; ₹1.005Cr). Fix: always include firstIdx and lastIdx in eqIdx and use firstIdx as the lumpsum base.", "selector": "[data-testid='equity-chart']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Equity Curve (Lumpsum)", "issues": ["The Y-axis bottom tick shows a negative rupee value ('-₹24k') because of the 8% padding when baseZero=false. A portfolio value can't be negative; clamp mn at 0 for ₹ axes."]},
+      {"screen": "Full-Period table", "issues": ["Rows that use a shorter sub-period (Nifty 50 Value 20 starts on 2009-01-01 when Start=2006-01-01) give no visible hint of this. #fpMeta says 'A single ₹25,000 invested on 2006-01-01', which is misleading for that row. Show the row's actual start date (fp.sd is already computed) or add a footnote."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Clear #fpbody, #fpTitle and #fpMeta in setErr() and in the Reset handler",
+    "Equity curve: include firstIdx and lastIdx in eqIdx (and base the lumpsum on firstIdx) so the curve spans the exact start→end and its final values match the Full-Period table",
+    "Clamp the lumpsum equity Y-axis minimum to 0 (no negative ₹ ticks)",
+    "Show the per-row start date (fp.sd) in the Full-Period table when it differs from the sample start (V20 inception)"
+  ],
+  "critical_code_review_comments": [
+    "fpIndex SIP: the returned sd is firstNN(k), not the first installment actually invested. That is fine today but should be used for display.",
+    "sipAnchorsFull and the rolling SIP anchor generation duplicate the 1st/15th anchor loop; extract a helper.",
+    "The SIP 'Amount Invested' ramp counts every anchor, including dates where some index (V20 pre-2009) had no data, so the V20 line and the ramp use different bases in 2006 runs. Acceptable, but worth a legend note."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "95% (all 8 requested checks pass; 4 secondary issues found)"},
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Static page; window.NSE_DATA is global (dates, tri, price, order, labels), so expected values can be recomputed in page.evaluate. Default mode on load is SIP, start 2012-01-01. Latest data date is 2026-09-29. Verified numbers: Lumpsum 2010 N50 10.50%/₹1.33L, blend 17.73%; SIP 2010 N50 11.12%, ₹1.00Cr invested, blend 18.22%/₹5.57Cr; SIP 2006 V20 13.31% (₹1.06Cr invested, from 2009-01-01). Retest the stale fpbody after error/reset and the equity curve endpoints."
+}

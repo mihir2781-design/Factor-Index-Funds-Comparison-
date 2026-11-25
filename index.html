@@ -222,6 +222,7 @@
     const status=document.getElementById("status");
     const setErr=m=>{status.className="status err";status.textContent=m;
       document.getElementById("tbody").innerHTML="";document.getElementById("meta").textContent="";
+      document.getElementById("fpbody").innerHTML="";document.getElementById("fpMeta").textContent="";document.getElementById("fpTitle").textContent="Full-Period Result (Sample Start → End)";
       document.getElementById("rollReadout").innerHTML="";document.getElementById("equityReadout").innerHTML="";
       lastRoll=lastEquity=lastDist=null;draw();};
     const mode=document.getElementById("mode").value,isSIP=mode==="SIP";
@@ -327,9 +328,10 @@
     const fpb=document.getElementById("fpbody");fpb.innerHTML="";
     const fpRow=(name,fp,color,cls)=>{const sw=color?`<span class="sw" style="background:${color}"></span>`:"";
       if(!fp)return `<tr class="${cls||''}"><td>${sw}${name}</td><td colspan="4" class="se">no data in this period</td></tr>`;
+      const note=(fp.sd&&fp.sd!==D.dates[firstIdx])?` <span class="se">(from ${fp.sd})</span>`:"";
       const mult=fp.finalVal/fp.invested,gain=`<span class="${mult>=1?'pos':'neg'}">${mult.toFixed(2)}× &nbsp;(${inrShort(fp.finalVal-fp.invested)})</span>`;
       const rc=`<span class="${fp.ret>=0?'pos':'neg'}">${pct(fp.ret)}</span>`;
-      return `<tr class="${cls||''}"><td>${sw}${name}</td><td>${rc}</td><td>${inrShort(fp.invested)}</td><td>${inrShort(fp.finalVal)}</td><td>${gain}</td></tr>`;};
+      return `<tr class="${cls||''}"><td>${sw}${name}${note}</td><td>${rc}</td><td>${inrShort(fp.invested)}</td><td>${inrShort(fp.finalVal)}</td><td>${gain}</td></tr>`;};
     vis.forEach(k=>fpb.insertAdjacentHTML("beforeend",fpRow(LAB[k],fpIndex(k),COLORS[k])));
     if(useBlend)fpb.insertAdjacentHTML("beforeend",fpRow("Custom Blend",fpBlend(),COLORS.BLEND,"blend"));
     document.getElementById("fpColReturn").textContent=isSIP?"Period XIRR":"Period CAGR";
@@ -350,7 +352,9 @@
       yFmt:v=>(v*100).toFixed(0)+"%",baseZero:false,zeroLine:true,hoverIndex:endDates.length-1,mode,h,basisLabel:basis==="tri"?"TRI":"Price"};
 
     // equity curve — SIP shows SIP portfolio value + amount invested; Lumpsum shows value of the lumpsum
-    const eqIdx=MS.filter(e=>e>=firstIdx&&e<=lastIdx);
+    let eqIdx=MS.filter(e=>e>=firstIdx&&e<=lastIdx);
+    if(eqIdx.length===0||eqIdx[0]!==firstIdx)eqIdx.unshift(firstIdx);
+    if(eqIdx[eqIdx.length-1]!==lastIdx)eqIdx.push(lastIdx);
     const eqSeries=[];
     if(isSIP){
       vis.forEach(k=>{let ci=0,units=0;const data=eqIdx.map(i=>{
@@ -371,7 +375,7 @@
           let v=0;activeK.forEach(k=>v+=w[k]*amount*(S[k][i]/bases[k]));return v;});
         eqSeries.push({key:"BLEND",label:"Custom Blend",color:COLORS.BLEND,data,actual:null});}
     }
-    lastEquity={series:eqSeries,dates:eqIdx.map(i=>D.dates[i]),xLabels:eqIdx.map(i=>D.dates[i]),yFmt:inrShort,baseZero:isSIP,mode,hoverIndex:eqIdx.length-1,basisLabel:basis==="tri"?"TRI":"Price",isSIP};
+    lastEquity={series:eqSeries,dates:eqIdx.map(i=>D.dates[i]),xLabels:eqIdx.map(i=>D.dates[i]),yFmt:inrShort,baseZero:true,mode,hoverIndex:eqIdx.length-1,basisLabel:basis==="tri"?"TRI":"Price",isSIP};
     document.getElementById("equityTitle").textContent=isSIP?"Equity Curve — SIP value vs amount invested":"Equity Curve — value of your lumpsum";
     document.getElementById("equitySub").textContent=isSIP
       ? `Value of a ${inr(amount)} SIP (1st & 15th) over the period, vs the cumulative amount invested (grey). Hover to read values.`
@@ -502,6 +506,7 @@
   document.getElementById("resetBtn").addEventListener("click",()=>{setDefaults();
     document.getElementById("status").className="status";document.getElementById("status").textContent="Inputs reset. Click Run Simulation.";
     document.getElementById("tbody").innerHTML="";document.getElementById("meta").textContent="";
+    document.getElementById("fpbody").innerHTML="";document.getElementById("fpMeta").textContent="";document.getElementById("fpTitle").textContent="Full-Period Result (Sample Start → End)";
     document.getElementById("rollReadout").innerHTML="";document.getElementById("equityReadout").innerHTML="";
     lastRoll=lastEquity=lastDist=null;draw();});
   window.addEventListener("resize",()=>{draw();if(lastRoll)renderRollReadout(lastRoll.hoverIndex);if(lastEquity)renderEqReadout(lastEquity.hoverIndex);});
