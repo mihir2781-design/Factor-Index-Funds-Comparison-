@@ -2,7 +2,7 @@ name: Refresh NSE index data
 
 on:
   schedule:
-    - cron: '0 3 * * 6'      # every Saturday 03:00 UTC (08:30 IST) — markets closed, fresh weekend data
+    - cron: '0 3 1,16 * *'    # the 1st & 16th of each month (~every 15 days), 03:00 UTC (08:30 IST)
   workflow_dispatch: {}       # lets you run it manually from the Actions tab anytime
 
 permissions:
@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 

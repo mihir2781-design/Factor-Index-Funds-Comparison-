@@ -49,9 +49,10 @@ The app is `index.html` at the repo root, so once GitHub Pages is enabled
 
 ### Automatic (GitHub Actions) — recommended
 This repo ships with `.github/workflows/refresh.yml`. Once pushed to GitHub it will,
-**every Saturday** (and whenever you trigger it manually), fetch the latest Price + TRI
-for all indices, rebuild `index.html` + the Excel workbook, and commit them back — so the
-live GitHub Pages site stays current with **no local work**.
+on the **1st and 16th of every month (~every 15 days)** (and whenever you trigger it
+manually), fetch the latest Price + TRI for all indices, rebuild `index.html` + the Excel
+workbook, and commit them back — so the live GitHub Pages site stays current with
+**no local work**.
 
 To enable it after pushing:
 1. Open your repo → **Settings → Actions → General** → under *Workflow permissions* pick
@@ -60,7 +61,7 @@ To enable it after pushing:
    **Run workflow** on *"Refresh NSE index data"* to test it immediately.
 
 Change the schedule by editing the `cron:` line in `.github/workflows/refresh.yml`
-(e.g. `0 3 1 * *` = monthly on the 1st).
+(e.g. `0 3 * * 6` = weekly on Saturday, `0 3 1 * *` = monthly on the 1st).
 
 ### Manual (local)
 ```bash
