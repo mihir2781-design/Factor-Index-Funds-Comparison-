@@ -122,7 +122,7 @@
       <h2>Rolling Return Comparison</h2>
       <p class="meta" id="rollCompNote" style="margin:4px 2px 12px">Typical-window projection using the average of all rolling windows.</p>
       <div style="overflow-x:auto"><table data-testid="results-table">
-        <thead><tr><th>Index / Portfolio</th><th>Avg Rolling</th><th>Worst Floor</th><th>Best Peak</th>
+        <thead><tr><th>Index / Portfolio</th><th>Avg Rolling</th><th>Median Rolling</th><th>Worst Floor</th><th>Best Peak</th>
           <th>P(&gt;12%)</th><th>P(&gt;15%)</th><th id="projCol">Proj. value of ₹1L</th></tr></thead>
         <tbody id="tbody"></tbody></table></div>
       <div class="meta" id="meta"></div>
@@ -298,18 +298,20 @@
     if(nWin===0)return setErr("INSUFFICIENT DATA — no complete "+h+"-year window fits inside the sample.");
 
     function summ(arr){const xs=arr.filter(x=>x!=null);const n=xs.length;
-      if(n===0)return {avg:null,worst:null,best:null,p12:null,p15:null,corpus:null,n:0};
+      if(n===0)return {avg:null,median:null,worst:null,best:null,p12:null,p15:null,corpus:null,n:0};
       let s=0,mn=xs[0],mx=xs[0],c12=0,c15=0;
       for(const x of xs){s+=x;if(x<mn)mn=x;if(x>mx)mx=x;if(x>0.12)c12++;if(x>0.15)c15++;}
-      const avg=s/n;let corpus;const PROJ_AMT=100000;
+      const avg=s/n;const sorted=[...xs].sort((a,b)=>a-b);
+      const median=n%2?sorted[(n-1)/2]:(sorted[n/2-1]+sorted[n/2])/2;
+      let corpus;const PROJ_AMT=100000;
       if(isSIP){const mth=Math.pow(1+avg,1/12)-1,nm=Math.round(h*12);corpus=Math.abs(mth)<1e-12?PROJ_AMT*nm:PROJ_AMT*((Math.pow(1+mth,nm)-1)/mth)*(1+mth);}
       else corpus=PROJ_AMT*Math.pow(1+avg,h);
-      return {avg,worst:mn,best:mx,p12:c12/n,p15:c15/n,corpus,n};}
+      return {avg,median,worst:mn,best:mx,p12:c12/n,p15:c15/n,corpus,n};}
 
     const tb=document.getElementById("tbody");tb.innerHTML="";
     const rowHtml=(name,mm,color,cls)=>{const sw=color?`<span class="sw" style="background:${color}"></span>`:"";
-      const av=`<span class="${mm.avg>=0?'pos':'neg'}">${pct(mm.avg)}</span>`,wo=`<span class="${mm.worst>=0?'pos':'neg'}">${pct(mm.worst)}</span>`;
-      return `<tr class="${cls||''}"><td>${sw}${name}</td><td>${av}</td><td>${wo}</td><td>${pct(mm.best)}</td><td>${pct(mm.p12)}</td><td>${pct(mm.p15)}</td><td>${inr(mm.corpus)}</td></tr>`;};
+      const av=`<span class="${mm.avg>=0?'pos':'neg'}">${pct(mm.avg)}</span>`,md=`<span class="${mm.median>=0?'pos':'neg'}">${pct(mm.median)}</span>`,wo=`<span class="${mm.worst>=0?'pos':'neg'}">${pct(mm.worst)}</span>`;
+      return `<tr class="${cls||''}"><td>${sw}${name}</td><td>${av}</td><td>${md}</td><td>${wo}</td><td>${pct(mm.best)}</td><td>${pct(mm.p12)}</td><td>${pct(mm.p15)}</td><td>${inr(mm.corpus)}</td></tr>`;};
     vis.forEach(k=>tb.insertAdjacentHTML("beforeend",rowHtml(LAB[k],summ(ret[k]),COLORS[k])));
     if(useBlend)tb.insertAdjacentHTML("beforeend",rowHtml("Custom Blend",summ(retB),COLORS.BLEND,"blend"));
 
