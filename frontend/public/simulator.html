@@ -347,14 +347,14 @@
     document.getElementById("fpColReturn").textContent=isSIP?"Period XIRR":"Period CAGR";
     document.getElementById("fpTitle").textContent=`Full-Period Result — ${isSIP?"SIP (XIRR)":"Lumpsum (CAGR)"} · ${sv} → ${ev}`;
     document.getElementById("fpMeta").textContent=isSIP
-      ? `One ${inr(amount)} installment on the 1st & 15th of every month from ${sv} to ${ev}, valued on the last trading day. XIRR = money-weighted annual return.`
-      : `A single ${inr(amount)} invested on ${sv}, valued on the last trading day. CAGR = point-to-point annualised return.`;
+      ? `One ${inr(amount)} installment on the 1st & 15th of every month from ${sv} to ${ev}, valued on the last trading day. XIRR = money-weighted annual return. It can be well below the rolling-average above when gains were front-loaded — in a long SIP, more than half your money is invested in the later years, so recent flat/falling prices weigh heavily.`
+      : `A single ${inr(amount)} invested on ${sv}, valued on the last trading day. CAGR = the one point-to-point annualised return — it differs from the rolling-average above, which averages many overlapping ${h}-year windows (over-counting strong early periods).`;
 
     const cad=isSIP?"1st & 15th (twice-monthly)":"daily";
     document.getElementById("projCol").textContent=isSIP?"Proj. value of ₹1L/mo SIP":"Proj. value of ₹1L lumpsum";
     document.getElementById("rollCompNote").textContent=isSIP
-      ? "Typical-window estimate: a ₹1,00,000 monthly SIP grown at each index's AVERAGE rolling window return over the horizon. Fixed at ₹1L/month, independent of the Amount input. For the actual start→end outcome, see the Full-Period Result table below."
-      : "Typical-window estimate: a one-time ₹1,00,000 grown at each index's AVERAGE rolling window return over the horizon. Fixed at ₹1L, independent of the Amount input. For the actual start→end outcome, see the Full-Period Result table below.";
+      ? "Typical-window estimate: a ₹1,00,000 monthly SIP grown at each index's AVERAGE rolling window return over the horizon. This averages many overlapping windows and can read much higher than your actual Full-Period XIRR below when returns were front-loaded. Fixed at ₹1L/month, independent of the Amount input."
+      : "Typical-window estimate: a one-time ₹1,00,000 grown at each index's AVERAGE rolling window return over the horizon. This averages many overlapping windows and can differ from the actual Full-Period CAGR below. Fixed at ₹1L, independent of the Amount input.";
     document.getElementById("meta").textContent=`${nWin} rolling windows · ${isSIP?"SIP (exact XIRR)":"Lumpsum (CAGR)"} · ${h}-yr horizon · ${cad} cadence · ${basis==="tri"?"TRI":"Price"} basis · ${sv} → ${ev}`;
     status.className="status ok";status.textContent=`SIMULATION COMPLETE — ${nWin} rolling windows (${mode}, ${h}Y, ${basis.toUpperCase()}).`;
     document.getElementById("rollTitle").textContent=`Rolling ${h}-Year Return (plotted at each window's end date)`;
