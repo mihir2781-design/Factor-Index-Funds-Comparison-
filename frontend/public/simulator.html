@@ -87,11 +87,15 @@
     <h2>Inputs</h2>
     <label for="mode">Investment Mode</label>
     <select id="mode" data-testid="input-mode">
-      <option value="SIP">SIP (monthly · roll 1st &amp; 15th)</option>
+      <option value="SIP">SIP (1st &amp; 15th · 24/yr)</option>
       <option value="Lumpsum">Lumpsum (roll daily)</option>
     </select>
     <label for="amount">Amount (₹) <span id="amtHint" style="color:var(--muted);font-weight:400"></span></label>
     <input id="amount" type="number" min="1" step="1000" value="25000" data-testid="input-amount">
+    <div class="row2">
+      <div><label for="stepMonths">SIP step-up every (months)</label><input id="stepMonths" type="number" min="1" step="1" value="12" data-testid="input-stepmonths"></div>
+      <div><label for="stepAmount">SIP step-up amount (₹)</label><input id="stepAmount" type="number" min="0" step="500" value="0" data-testid="input-stepamount"></div>
+    </div>
     <div class="row2">
       <div><label for="horizon">Rolling Horizon (Years)</label><input id="horizon" type="number" min="0.5" step="0.5" value="5" data-testid="input-horizon"></div>
       <div><label for="basis">Return Basis</label>
@@ -256,20 +260,20 @@
     if(lastIdx<firstIdx)return setErr("INSUFFICIENT DATA — no rows in range.");
 
     const ret={};KEYS.forEach(k=>ret[k]=[]);const retB=[];const sIdx=[],eIdx=[],endDates=[];
-    function pushWindow(si,ei,cidxs){
+    function pushWindow(si,ei,cflows){
       sIdx.push(si);eIdx.push(ei);endDates.push(D.dates[ei]);
       const activeK=useBlend?KEYS.filter(k=>w[k]>0):[];
-      if(cidxs){ // SIP
+      if(cflows){ // SIP (twice-monthly, step-up aware)
         KEYS.forEach(k=>{
           let bad=(S[k][ei]==null),u=0;const cf=[];
-          for(const ci of cidxs){if(S[k][ci]==null){bad=true;break;}u+=1/S[k][ci];cf.push({a:-1,t:(TS[ci]-TS[si])/YMS});}
+          for(const c of cflows){const px=S[k][c.ci];if(px==null){bad=true;break;}u+=c.amt/px;cf.push({a:-c.amt,t:(TS[c.ci]-TS[si])/YMS});}
           if(bad){ret[k].push(null);return;}
           cf.push({a:u*S[k][ei],t:(TS[ei]-TS[si])/YMS});ret[k].push(xirr(cf));});
         if(useBlend){
-          let bad=activeK.some(k=>S[k][ei]==null)||cidxs.some(ci=>activeK.some(k=>S[k][ci]==null));
+          let bad=activeK.some(k=>S[k][ei]==null)||cflows.some(c=>activeK.some(k=>S[k][c.ci]==null));
           if(bad){retB.push(null);}
           else{const u={};activeK.forEach(k=>u[k]=0);const cf=[];
-            for(const ci of cidxs){activeK.forEach(k=>u[k]+=w[k]/S[k][ci]);cf.push({a:-1,t:(TS[ci]-TS[si])/YMS});}
+            for(const c of cflows){activeK.forEach(k=>u[k]+=w[k]*c.amt/S[k][c.ci]);cf.push({a:-c.amt,t:(TS[c.ci]-TS[si])/YMS});}
             let mat=0;activeK.forEach(k=>mat+=u[k]*S[k][ei]);cf.push({a:mat,t:(TS[ei]-TS[si])/YMS});retB.push(xirr(cf));}}
       }else{ // Lumpsum
         KEYS.forEach(k=>{const a=S[k][si],b=S[k][ei];ret[k].push((a==null||b==null)?null:Math.pow(b/a,1/h)-1);});
@@ -280,19 +284,23 @@
       }
     }
 
+    const incMonths=Math.max(1,Math.round(parseFloat(document.getElementById("stepMonths").value)||12));
+    const incAmt=Math.max(0,parseFloat(document.getElementById("stepAmount").value)||0);
+    const monthsBetween=(aMs,bMs)=>{const a=new Date(aMs),b=new Date(bMs);return (b.getUTCFullYear()-a.getUTCFullYear())*12+(b.getUTCMonth()-a.getUTCMonth());};
+    const amtFor=(startMs,ms)=>amount+Math.floor(monthsBetween(startMs,ms)/incMonths)*incAmt;
+    const sipAnchorMs=[];{const y0=new Date(startTS).getUTCFullYear(),y1=new Date(endTS).getUTCFullYear();
+      for(let y=y0;y<=y1;y++)for(let mo=0;mo<12;mo++)for(const day of [1,15]){const ms=Date.UTC(y,mo,day);if(ms>=startTS&&ms<=endTS)sipAnchorMs.push(ms);}sipAnchorMs.sort((a,b)=>a-b);}
+    const anchorIdx=sipAnchorMs.map(ms=>({ms,ci:lowerBound(ms)})).filter(o=>o.ci>=0&&TS[o.ci]<=endTS);
+    const firstAnchorMs=anchorIdx.length?anchorIdx[0].ms:startTS;
+
     if(!isSIP){
       for(let i=firstIdx;i<=lastIdx;i++){const mt=TS[i]+h*YMS;const m=lowerBound(mt);
         if(m<0||TS[m]>endTS)break; if(m<=i)continue; pushWindow(i,m,null);}
     }else{
-      const y0=new Date(startTS).getUTCFullYear(),y1=new Date(endTS).getUTCFullYear();
-      const anchors=[];for(let y=y0;y<=y1;y++)for(let mo=0;mo<12;mo++)for(const day of [1,15]){
-        const ms=Date.UTC(y,mo,day);if(ms>=startTS&&ms<=endTS)anchors.push(ms);}
-      anchors.sort((a,b)=>a-b);
-      for(const A of anchors){const endCal=A+h*YMS;
-        const si=lowerBound(A);if(si<0||TS[si]<startTS)continue;
-        const ei=lowerBound(endCal);if(ei<0||TS[ei]>endTS||ei<=si)continue;
-        const cidxs=[];for(let k=0;;k++){const cd=addMonthsUTC(A,k);if(cd>=endCal)break;const ci=lowerBound(cd);if(ci<0||TS[ci]>=TS[ei])break;cidxs.push(ci);}
-        if(cidxs.length===0)continue; pushWindow(si,ei,cidxs);}
+      for(let p=0;p<anchorIdx.length;p++){const A=anchorIdx[p].ms,si=anchorIdx[p].ci;
+        const endCal=A+h*YMS,ei=lowerBound(endCal);if(ei<0||TS[ei]>endTS||ei<=si)continue;
+        const cflows=[];for(let q=p;q<anchorIdx.length&&anchorIdx[q].ms<endCal;q++){const ci=anchorIdx[q].ci;if(ci<ei)cflows.push({ci,amt:amtFor(A,anchorIdx[q].ms)});}
+        if(cflows.length===0)continue; pushWindow(si,ei,cflows);}
     }
     const nWin=endDates.length;
     if(nWin===0)return setErr("INSUFFICIENT DATA — no complete "+h+"-year window fits inside the sample.");
@@ -316,27 +324,24 @@
     if(useBlend)tb.insertAdjacentHTML("beforeend",rowHtml("Custom Blend",summ(retB),COLORS.BLEND,"blend"));
 
     // ===== Full-period result (actual sample start -> end) =====
-    const sipAnchorsFull=(()=>{const raw=[];const y0=new Date(startTS).getUTCFullYear(),y1=new Date(endTS).getUTCFullYear();
-      for(let y=y0;y<=y1;y++)for(let mo=0;mo<12;mo++)for(const dy of [1,15]){const ms=Date.UTC(y,mo,dy);if(ms>=startTS&&ms<=endTS)raw.push(ms);}
-      raw.sort((a,b)=>a-b);const idxs=[];for(const ms of raw){const ci=lowerBound(ms);if(ci>=firstIdx&&ci<=lastIdx)idxs.push(ci);}return idxs;})();
     function firstNN(k){for(let i=firstIdx;i<=lastIdx;i++)if(S[k][i]!=null)return i;return -1;}
     function lastNN(k){for(let i=lastIdx;i>=firstIdx;i--)if(S[k][i]!=null)return i;return -1;}
     function fpIndex(k){const ai=firstNN(k),bi=lastNN(k);if(ai<0||bi<0||bi<=ai)return null;
       if(!isSIP){const yrs=(TS[bi]-TS[ai])/YMS,cagr=Math.pow(S[k][bi]/S[k][ai],1/yrs)-1,fv=amount*(S[k][bi]/S[k][ai]);
         return {ret:cagr,invested:amount,finalVal:fv,sd:D.dates[ai],ed:D.dates[bi],yrs};}
-      let units=0,n=0;const cf=[];const t0=TS[sipAnchorsFull.length?sipAnchorsFull[0]:ai];
-      for(const ci of sipAnchorsFull){if(ci>bi)break;if(S[k][ci]==null)continue;units+=amount/S[k][ci];n++;cf.push({a:-amount,t:(TS[ci]-t0)/YMS});}
+      let units=0,inv=0,n=0;const cf=[];const t0=TS[anchorIdx.length?anchorIdx[0].ci:ai];
+      for(const o of anchorIdx){if(o.ci>bi)break;if(S[k][o.ci]==null)continue;const amt=amtFor(firstAnchorMs,o.ms);units+=amt/S[k][o.ci];inv+=amt;n++;cf.push({a:-amt,t:(TS[o.ci]-t0)/YMS});}
       if(n===0)return null;const fv=units*S[k][bi];cf.push({a:fv,t:(TS[bi]-t0)/YMS});
-      return {ret:xirr(cf),invested:amount*n,finalVal:fv,sd:D.dates[firstNN(k)],ed:D.dates[bi],yrs:(TS[bi]-t0)/YMS,n};}
+      return {ret:xirr(cf),invested:inv,finalVal:fv,sd:D.dates[firstNN(k)],ed:D.dates[bi],yrs:(TS[bi]-t0)/YMS,n};}
     function fpBlend(){const activeK=KEYS.filter(k=>w[k]>0);if(activeK.length===0)return null;
       let ai=-1;for(let i=firstIdx;i<=lastIdx;i++){if(activeK.every(k=>S[k][i]!=null)){ai=i;break;}}
       const bi=lastIdx;if(ai<0||bi<=ai||activeK.some(k=>S[k][bi]==null))return null;
       if(!isSIP){let gf=0;activeK.forEach(k=>gf+=w[k]*(S[k][bi]/S[k][ai]));const yrs=(TS[bi]-TS[ai])/YMS;
         return {ret:Math.pow(gf,1/yrs)-1,invested:amount,finalVal:amount*gf,sd:D.dates[ai],ed:D.dates[bi],yrs};}
-      const units={};activeK.forEach(k=>units[k]=0);let n=0;const cf=[];const t0=TS[sipAnchorsFull.length?sipAnchorsFull[0]:ai];
-      for(const ci of sipAnchorsFull){if(ci>bi)break;if(activeK.some(k=>S[k][ci]==null))continue;activeK.forEach(k=>units[k]+=w[k]*amount/S[k][ci]);n++;cf.push({a:-amount,t:(TS[ci]-t0)/YMS});}
+      const units={};activeK.forEach(k=>units[k]=0);let inv=0,n=0;const cf=[];const t0=TS[anchorIdx.length?anchorIdx[0].ci:ai];
+      for(const o of anchorIdx){if(o.ci>bi)break;if(activeK.some(k=>S[k][o.ci]==null))continue;const amt=amtFor(firstAnchorMs,o.ms);activeK.forEach(k=>units[k]+=w[k]*amt/S[k][o.ci]);inv+=amt;n++;cf.push({a:-amt,t:(TS[o.ci]-t0)/YMS});}
       if(n===0)return null;let fv=0;activeK.forEach(k=>fv+=units[k]*S[k][bi]);cf.push({a:fv,t:(TS[bi]-t0)/YMS});
-      return {ret:xirr(cf),invested:amount*n,finalVal:fv,sd:D.dates[ai],ed:D.dates[bi],yrs:(TS[bi]-t0)/YMS,n};}
+      return {ret:xirr(cf),invested:inv,finalVal:fv,sd:D.dates[ai],ed:D.dates[bi],yrs:(TS[bi]-t0)/YMS,n};}
     const fpb=document.getElementById("fpbody");fpb.innerHTML="";
     const fpRow=(name,fp,color,cls)=>{const sw=color?`<span class="sw" style="background:${color}"></span>`:"";
       if(!fp)return `<tr class="${cls||''}"><td>${sw}${name}</td><td colspan="4" class="se">no data in this period</td></tr>`;
@@ -349,7 +354,7 @@
     document.getElementById("fpColReturn").textContent=isSIP?"Period XIRR":"Period CAGR";
     document.getElementById("fpTitle").textContent=`Full-Period Result — ${isSIP?"SIP (XIRR)":"Lumpsum (CAGR)"} · ${sv} → ${ev}`;
     document.getElementById("fpMeta").textContent=isSIP
-      ? `One ${inr(amount)} installment on the 1st & 15th of every month from ${sv} to ${ev}, valued on the last trading day. XIRR = money-weighted annual return. It can be well below the rolling-average above when gains were front-loaded — in a long SIP, more than half your money is invested in the later years, so recent flat/falling prices weigh heavily.`
+      ? `A ${inr(amount)} SIP on BOTH the 1st & 15th of every month (24/yr) from ${sv} to ${ev}, valued on the last trading day.${incAmt>0?` Step-up: +${inr(incAmt)} every ${incMonths} month(s).`:``} XIRR = money-weighted annual return. It can be well below the rolling-average above when gains were front-loaded — in a long SIP, more than half your money is invested in the later years, so recent flat/falling prices weigh heavily.`
       : `A single ${inr(amount)} invested on ${sv}, valued on the last trading day. CAGR = the one point-to-point annualised return — it differs from the rolling-average above, which averages many overlapping ${h}-year windows (over-counting strong early periods).`;
 
     const cad=isSIP?"1st & 15th (twice-monthly)":"daily";
@@ -372,16 +377,16 @@
     if(eqIdx.length===0||eqIdx[0]!==firstIdx)eqIdx.unshift(firstIdx);
     if(eqIdx[eqIdx.length-1]!==lastIdx)eqIdx.push(lastIdx);
     const eqSeries=[];
-    if(isSIP){
-      vis.forEach(k=>{let ci=0,units=0;const data=eqIdx.map(i=>{
-        while(ci<sipAnchorsFull.length&&sipAnchorsFull[ci]<=i){const ai=sipAnchorsFull[ci];if(S[k][ai]!=null)units+=amount/S[k][ai];ci++;}
+    if(isSIP){const startMs=firstAnchorMs;
+      vis.forEach(k=>{let q=0,units=0;const data=eqIdx.map(i=>{
+        while(q<anchorIdx.length&&anchorIdx[q].ci<=i){const o=anchorIdx[q];if(S[k][o.ci]!=null)units+=amtFor(startMs,o.ms)/S[k][o.ci];q++;}
         const px=S[k][i];return (px==null||units===0)?null:units*px;});
         eqSeries.push({key:k,label:LAB[k],color:COLORS[k],data,actual:null});});
-      if(useBlend){const activeK=KEYS.filter(k=>w[k]>0);let ci=0;const units={};activeK.forEach(k=>units[k]=0);
-        const data=eqIdx.map(i=>{while(ci<sipAnchorsFull.length&&sipAnchorsFull[ci]<=i){const ai=sipAnchorsFull[ci];if(activeK.every(k=>S[k][ai]!=null))activeK.forEach(k=>units[k]+=w[k]*amount/S[k][ai]);ci++;}
+      if(useBlend){const activeK=KEYS.filter(k=>w[k]>0);let q=0;const units={};activeK.forEach(k=>units[k]=0);
+        const data=eqIdx.map(i=>{while(q<anchorIdx.length&&anchorIdx[q].ci<=i){const o=anchorIdx[q];if(activeK.every(k=>S[k][o.ci]!=null)){const amt=amtFor(startMs,o.ms);activeK.forEach(k=>units[k]+=w[k]*amt/S[k][o.ci]);}q++;}
           if(activeK.some(k=>S[k][i]==null))return null;let v=0;activeK.forEach(k=>v+=units[k]*S[k][i]);return v===0?null:v;});
         eqSeries.push({key:"BLEND",label:"Custom Blend",color:COLORS.BLEND,data,actual:null});}
-      let ac=0,p=0;const investedRamp=eqIdx.map(i=>{while(p<sipAnchorsFull.length&&sipAnchorsFull[p]<=i){ac++;p++;}return ac>0?amount*ac:null;});
+      let inv=0,q2=0;const investedRamp=eqIdx.map(i=>{while(q2<anchorIdx.length&&anchorIdx[q2].ci<=i){inv+=amtFor(startMs,anchorIdx[q2].ms);q2++;}return inv>0?inv:null;});
       eqSeries.push({key:"INV",label:"Amount Invested",color:"#9aa8b5",data:investedRamp,actual:null,dashed:true});
     }else{
       vis.forEach(k=>{const vals=eqIdx.map(i=>S[k][i]);const base=vals.find(v=>v!=null);
