@@ -1,0 +1,20 @@
+{
+  "summary": "Verified Multicap Mom Quality 50 SIP scenario (2021-01-01 -> 2026-09-29 latest, 3Y horizon) on the preview URL. PRICE: Avg Rolling 19.84%, Full-Period XIRR 9.37%. TRI: Avg Rolling 21.13%, Full-Period XIRR 10.59%. Both match E1's independent recompute (19.84/9.37, 21.13/10.58). 66 rolling windows. Rolling avg is far above full-period XIRR, which is expected (they are different metrics) and not a bug. Total Invested is Rs34.50L = 138 x Rs25,000 (I recomputed the 138 1st/15th dates). Final Value 45.18L / 46.79L matches the stated XIRR when re-solved independently (45.20L / 46.81L, within rounding). No NaN or em-dash placeholders in any row. Both new notes (rollCompNote, fpMeta) render, are visible and contain the requested wording in SIP mode. No console errors or page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Rolling Return Comparison card", "issues": ["#rollCompNote (class 'sub') renders in a large ~16px body font, much bigger than the small muted #meta/#fpMeta notes, so it looks heavier than the table. Consider using the small muted 'meta' styling.", "Return Basis select text is cut off ('TRI (Total Returr') at 1920px width in the narrow two-column row."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": ["Optional cosmetic: make the #rollCompNote font size match #fpMeta; widen the Return Basis select or shorten its option labels"],
+  "critical_code_review_comments": ["The engine math checks out for this scenario. The note text is set correctly in both the SIP and Lumpsum branches (lines 349-357 of simulator.html). simulator.html is byte-identical to /app/index.html."],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Static simulator at /simulator.html. Data ends 2026-09-29 (#end max). Test scenario: SIP, Start 2021-01-01, horizon 3. Expected Price 19.84% / 9.37% and TRI 21.13% / 10.59% for Multicap Mom Quality 50, with Total Invested 34.50L."
+}

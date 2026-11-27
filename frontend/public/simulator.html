@@ -95,7 +95,7 @@
     <div class="row2">
       <div><label for="horizon">Rolling Horizon (Years)</label><input id="horizon" type="number" min="0.5" step="0.5" value="5" data-testid="input-horizon"></div>
       <div><label for="basis">Return Basis</label>
-        <select id="basis" data-testid="input-basis"><option value="tri">TRI (Total Return)</option><option value="price">Price (Unadjusted)</option></select></div>
+        <select id="basis" data-testid="input-basis"><option value="tri">TRI</option><option value="price">Price</option></select></div>
     </div>
     <div class="row2">
       <div><label for="start">Sample Start</label><input id="start" type="date" data-testid="input-start"></div>
@@ -120,7 +120,7 @@
 
     <div class="card">
       <h2>Rolling Return Comparison</h2>
-      <p class="sub" id="rollCompNote">Typical-window projection using the average of all rolling windows.</p>
+      <p class="meta" id="rollCompNote" style="margin:4px 2px 12px">Typical-window projection using the average of all rolling windows.</p>
       <div style="overflow-x:auto"><table data-testid="results-table">
         <thead><tr><th>Index / Portfolio</th><th>Avg Rolling</th><th>Worst Floor</th><th>Best Peak</th>
           <th>P(&gt;12%)</th><th>P(&gt;15%)</th><th id="projCol">Proj. value of ₹1L</th></tr></thead>
