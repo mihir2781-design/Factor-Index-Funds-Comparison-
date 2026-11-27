@@ -90,11 +90,11 @@
       <option value="SIP">SIP (1st &amp; 15th · 24/yr)</option>
       <option value="Lumpsum">Lumpsum (roll daily)</option>
     </select>
-    <label for="amount">Amount (₹) <span id="amtHint" style="color:var(--muted);font-weight:400"></span></label>
+    <label for="amount">Amount (₹)</label>
     <input id="amount" type="number" min="1" step="1000" value="25000" data-testid="input-amount">
     <div class="row2">
-      <div><label for="stepMonths">SIP step-up every (months)</label><input id="stepMonths" type="number" min="1" step="1" value="12" data-testid="input-stepmonths"></div>
-      <div><label for="stepAmount">SIP step-up amount (₹)</label><input id="stepAmount" type="number" min="0" step="500" value="0" data-testid="input-stepamount"></div>
+      <div><label for="stepMonths">Step-up every (mo.)</label><input id="stepMonths" type="number" min="1" step="1" value="12" data-testid="input-stepmonths"></div>
+      <div><label for="stepAmount">Step-up amount (₹)</label><input id="stepAmount" type="number" min="0" step="500" value="0" data-testid="input-stepamount"></div>
     </div>
     <div class="row2">
       <div><label for="horizon">Rolling Horizon (Years)</label><input id="horizon" type="number" min="0.5" step="0.5" value="5" data-testid="input-horizon"></div>
@@ -105,6 +105,7 @@
       <div><label for="start">Sample Start</label><input id="start" type="date" data-testid="input-start"></div>
       <div><label for="end">Sample End</label><input id="end" type="date" data-testid="input-end"></div>
     </div>
+    <div class="meta" id="rangeHint" style="margin:4px 2px 0;font-size:11px"></div>
     <div class="pickbox"><div class="h">Show indices <span style="font-weight:400;color:var(--muted)">(table &amp; charts)</span></div>
       <div class="chips" id="picker"></div></div>
     <div class="blendbox">
@@ -212,7 +213,7 @@
   function updateWTotal(){const w=readWeights();const t=KEYS.reduce((a,k)=>a+w[k],0);
     const el=document.getElementById("wtotal");el.textContent=t.toFixed(0)+"%";el.className="val "+(Math.abs(t-100)<1e-9?"ok":"bad");return t;}
 
-  document.getElementById("amtHint").textContent="("+D.dates[0]+" → "+D.dates[N-1]+")";
+  document.getElementById("rangeHint").textContent="Data available: "+D.dates[0]+" → "+D.dates[N-1];
   const sEl=document.getElementById("start"),eEl=document.getElementById("end");
   sEl.min=eEl.min=D.dates[0];sEl.max=eEl.max=D.dates[N-1];
   function setDefaults(){document.getElementById("mode").value="SIP";document.getElementById("amount").value=25000;
@@ -399,7 +400,7 @@
     lastEquity={series:eqSeries,dates:eqIdx.map(i=>D.dates[i]),xLabels:eqIdx.map(i=>D.dates[i]),yFmt:inrShort,baseZero:true,mode,hoverIndex:eqIdx.length-1,basisLabel:basis==="tri"?"TRI":"Price",isSIP};
     document.getElementById("equityTitle").textContent=isSIP?"Equity Curve — SIP value vs amount invested":"Equity Curve — value of your lumpsum";
     document.getElementById("equitySub").textContent=isSIP
-      ? `Value of a ${inr(amount)} SIP (1st & 15th) over the period, vs the cumulative amount invested (grey). Hover to read values.`
+      ? `Value of a ${inr(amount)} SIP (1st & 15th, 24/yr)${incAmt>0?` + step-up ${inr(incAmt)}/${incMonths}mo`:``} over the period, vs the cumulative amount invested (grey). Hover to read values.`
       : `Growth of a single ${inr(amount)} invested at the sample start. Hover to read the value and index level at any date.`;
 
     // distribution — fixed return-band buckets, bars

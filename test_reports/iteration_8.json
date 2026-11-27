@@ -1,0 +1,29 @@
+{
+  "summary": "Tested the SIP 24/yr consistency change and the new step-up feature on the preview /simulator.html. Everything requested passed. (1) Defaults: stepMonths=12, stepAmount=0, amount=25000. (2) SIP, Price, 2021-01-01 to 2026-09-29, 3Y, step-up 0, Multicap Mom Quality 50 (MMQ50): Avg Rolling 19.82%, Median 15.38%, 66 windows, Full-Period XIRR 9.37%, Invested Rs34.50L (138 x 25k), Final Rs45.18L. Rolling avg is above the full-period XIRR, as expected. (3) Step-up Rs5000 every 12 months: Invested Rs51.00L (I recomputed it by hand: 24x(25+30+35+40+45)k + 18x50k = 51.0L), XIRR 8.38%, Final Rs63.02L, gain 1.24x. Every index and the Custom Blend row are finite, with higher Invested and lower XIRR. The fpMeta note shows the step-up text. Rolling stats also move slightly with step-up (MMQ50 avg 19.70%). (4) Equity curve: the Amount Invested readout ramps faster with step-up (2023-10-03: 19.85L vs 16.75L; 2026-07-01: 48.50L, which matches the hand calculation). At the last point it reads 51,00,000 and MMQ50 reads 63,02,498, matching the Full-Period table exactly. The first point equals the first installment (25,000). Hovering the readout at 5 positions showed no errors. (5) Lumpsum: tables are identical with step-up 0 and 5000 (MMQ50 CAGR 15.12%, 681 windows). (6) SIP from 2006-01-01 with step-up 5000: the Nifty 50 Value 20 row shows '(from 2009-01-01)', XIRR 10.65%, Invested 3.49Cr vs 3.71Cr for the others, no NaN. (7) No console errors, no page errors, and no 'NaN' text across all runs. simulator.html is byte-identical to /app/index.html.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Equity Curve subtitle", "issues": ["The subtitle still reads 'Value of a Rs25,000 SIP (1st & 15th)' even when a step-up is active. Consider adding '+ step-up Rs5,000/12mo' so it matches fpMeta."]},
+      {"screen": "Inputs panel", "issues": ["The data-range hint '(2005-04-01 -> 2026-09-29)' sits next to the 'Amount (Rs)' label, which is confusing; it belongs near the Sample Start/End inputs. The 'SIP step-up every (months)' label wraps to two lines, so its input sits lower than the step-up amount input next to it."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: mention the step-up in the equity-curve subtitle",
+    "Optional: move the date-range hint off the Amount label and align the two step-up inputs",
+    "Design decision to confirm: step-up is counted from the global first anchor (amtFor(firstAnchorMs, ...)). An index that starts late (V20 from 2009, with a 2006 start) therefore begins at an already stepped-up installment (Rs40,000 instead of Rs25,000). Also, the shared Amount Invested line on the equity curve counts installments from before V20 existed. Both are defensible calendar-based choices, but clarify them or make them per-index if needed."
+  ],
+  "critical_code_review_comments": [
+    "template.html lines 287-303: the step-up math and the 24/yr anchors are applied the same way in rolling windows (where step-up counts from each window's own start A), full-period (from firstAnchorMs) and equity (from firstAnchorMs). Correct and consistent.",
+    "monthsBetween ignores the day of month, so a 1st and a 15th in the same month count as the same step. Since steps fall on month boundaries this is fine.",
+    "fpIndex uses t0 = TS[anchorIdx[0].ci] even for an index whose data starts later. XIRR does not change when all cashflow times are shifted, so the result is still correct, but fp.yrs for V20 counts from the global start rather than from 2009 (not displayed)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Static /simulator.html; data ends 2026-09-29. Baseline: SIP, Price, 2021-01-01, 3Y, MMQ50. Step-up 0: Avg 19.82% / Median 15.38% / XIRR 9.37% / Invested 34.50L / Final 45.18L. Step-up 5000/12mo: XIRR 8.38% / Invested 51.00L / Final 63.02L. Lumpsum MMQ50 CAGR 15.12% (unaffected by step-up). lastEquity is not reachable from page.evaluate, so read values from the hover readout under the equity chart."
+}
